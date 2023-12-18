@@ -1,0 +1,5 @@
+patient,sample_name,sample_type,bam_path,sequencing_type,purity,ploidy,normal_sample_id
+SIM001,SIM001_GL,normal,/nemo/lab/swantonc/working/jonest/LOHHLA/test_data/SIM_001_gl_genome.bam,wxs,,,
+SIM001,SIM001_TUM,tumour,/nemo/lab/swantonc/working/jonest/LOHHLA/test_data/SIM_001_tumour_genome.bam,wxs,0.5,2,SIM001_GL
+SIM001,SIM001_N01,normal,/nemo/lab/swantonc/working/jonest/LOHHLA/test_data/SIM_001_gl_transcriptome.bam,rna,,,
+SIM001,SIM001_TUM,tumour,/nemo/lab/swantonc/working/jonest/LOHHLA/test_data/SIM_001_tumour_transcriptome.bam,rna,,,SIM001_N01

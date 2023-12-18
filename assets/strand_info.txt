@@ -1,0 +1,4 @@
+gene	strand
+HLA-A	+
+HLA-B	-
+HLA-C	-
