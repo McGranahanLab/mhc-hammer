@@ -5,13 +5,13 @@ MHC Hammer is a bioinformatics pipeline designed for the analysis of the class I
 MHC Hammer requires for each patient a germline WES sample. From this, the patient's HLA allele types are predicted using [HLA-HD](https://pubmed.ncbi.nlm.nih.gov/28419628/). Then, depending on what is else input to the pipeline, the following analysis can be run:
 
 To estimate DNA HLA allelic imbalance and somatic mutations:
-* A tumour WES BAM file.
+- A tumour WES BAM file.
 To estimate DNA HLA copy number (and LOH):
-* A tumour WES BAM file with corresponding purity and ploidy estimates. 
+- A tumour WES BAM file with corresponding purity and ploidy estimates. 
 To estimate RNA HLA allelic expression, allelic imbalance and alternative splicing:
-* A tumour or normal RNAseq BAM file.
+- A tumour or normal RNAseq BAM file.
 To estimate RNA HLA allelic repression or tumour/normal enrichment of alternative splicing events:
-* A tumour and normal tissue RNAseq BAM file. The normal sample should be from the same patient and tissue as the tumour.
+- A tumour and normal tissue RNAseq BAM file. The normal sample should be from the same patient and tissue as the tumour.
 
 ## Steps before running the pipeline
  
