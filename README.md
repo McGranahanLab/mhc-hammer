@@ -4,17 +4,10 @@ MHC Hammer is a bioinformatics pipeline designed for the analysis of the class I
 
 MHC Hammer requires for each patient a germline WES sample. From this, the patient's HLA allele types are predicted using [HLA-HD](https://pubmed.ncbi.nlm.nih.gov/28419628/). Then, depending on what is else input to the pipeline, the following analysis can be run:
 
-To estimate DNA HLA allelic imbalance and somatic mutations:
-- A tumour WES BAM file.
-
-To estimate DNA HLA copy number (and LOH):
-- A tumour WES BAM file with corresponding purity and ploidy estimates. 
-
-To estimate RNA HLA allelic expression, allelic imbalance and alternative splicing:
-- A tumour or normal RNAseq BAM file.
-
-To estimate RNA HLA allelic repression or tumour/normal enrichment of alternative splicing events:
-- A tumour and normal tissue RNAseq BAM file. The normal sample should be from the same patient and tissue as the tumour.
+- To estimate DNA HLA allelic imbalance and somatic mutations a tumour WES BAM file must be provided.
+- To estimate DNA HLA copy number (and LOH) a tumour WES BAM file with corresponding purity and ploidy estimates must be provided. 
+- To estimate RNA HLA allelic expression, allelic imbalance and alternative splicing a tumour or normal RNAseq BAM file must be provided.
+- To estimate RNA HLA allelic repression or tumour/normal enrichment of alternative splicing events a tumour and normal tissue RNAseq BAM file must be provided. The normal sample should be from the same patient and tissue as the tumour.
 
 ## Steps before running the pipeline
  
@@ -26,19 +19,19 @@ To estimate RNA HLA allelic repression or tumour/normal enrichment of alternativ
 ### Make an inventory file
 
 You need to create a inventory file with the following columns:
-- patient - the patient name. MHC Hammer will replace spaces in the patient name with underscores. Required.
-- sample_name - the sample name. MHC Hammer will replace spaces in the sample name with underscores. Required.
-- sample_type - either `tumour` or `normal`.  Required.
-- bam_path - full path to the wxs or rnaseq BAM file. Required.
-- sequencing_type - either `wxs` or `rnaseq`.  Required.
-- purity - the purity of the tumour region. Can be left empty.
-- ploidy - the ploidy of the tumour region. Can be left empty.
-- normal_sample_name - when sequencing_type is `wxs` this is the matched germline wxs. When sequencing_type is `rnaseq` this is the matched rnaseq normal name. 
+- `patient` - the patient name. MHC Hammer will replace spaces in the patient name with underscores. Required.
+- `sample_name` - the sample name. MHC Hammer will replace spaces in the sample name with underscores. Required.
+- `sample_type` - either `tumour` or `normal`.  Required.
+- `bam_path` - full path to the wxs or rnaseq BAM file. Required.
+- `sequencing_type` - either `wxs` or `rnaseq`.  Required.
+- `purity` - the purity of the tumour region. Can be left empty.
+- `ploidy` - the ploidy of the tumour region. Can be left empty.
+- `normal_sample_name` - when sequencing_type is `wxs` this is the matched germline wxs. When sequencing_type is `rnaseq` this is the matched rnaseq normal name. 
 
 The inventory should be a csv file and is input to the pipeline with the `--input` parameter. 
 
 The following is an example inventory for a single patient with:
-- two tumour regions with wxs (sample_name1 and sample_name2), one of which has rnaseq (sample_name1)
+- two tumour regions with WES (sample_name1 and sample_name2), one of which has RNAseq (sample_name1)
 - one germline wxs sample (sample_name3)
 - one normal rnaseq sample (sample_name4)
 
@@ -266,6 +259,11 @@ These parameters provide the path to the reference files that MHC Hammer require
 - `max_copy_number_range` - Maximum range in the 95% confidence interval.
 - `min_expected_depth` - Minimum expected depth.
 
+## Running the pipeline
+To run the pipeline:
+```bash
+nextflow run main.nf --input /path/to/inventory.csv -c conf/hpc.config -resume
+```
 ## Outputs
 Depending on the input files, the pipeline will output a number of different files.
 
