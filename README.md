@@ -6,10 +6,13 @@ MHC Hammer requires for each patient a germline WES sample. From this, the patie
 
 To estimate DNA HLA allelic imbalance and somatic mutations:
 - A tumour WES BAM file.
+
 To estimate DNA HLA copy number (and LOH):
 - A tumour WES BAM file with corresponding purity and ploidy estimates. 
+
 To estimate RNA HLA allelic expression, allelic imbalance and alternative splicing:
 - A tumour or normal RNAseq BAM file.
+
 To estimate RNA HLA allelic repression or tumour/normal enrichment of alternative splicing events:
 - A tumour and normal tissue RNAseq BAM file. The normal sample should be from the same patient and tissue as the tumour.
 
