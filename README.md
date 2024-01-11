@@ -77,18 +77,37 @@ singularity exec -B ${PWD}:${PWD} $mhc_hammer_preprocessing_sif git checkout 338
 
 Once you have downloaded the IMGT database you then need to run two R scripts that create the HLA allele reference files used in the MHC Hammer pipeline. 
 
-First run `scripts/convert_hla_dat.R`:
+**Step 1:** Run `scripts/convert_hla_dat.R`. This script parses the `hla.dat` file downloaded with the IMGT data and converts it into two csv files.
 ```bash
 singularity exec -B ${PWD}:${PWD} $mhc_hammer_preprocessing_sif Rscript ${project_dir}/scripts/convert_hla_dat.R \
     --path_to_hla_dat ${project_dir}/assets/IMGT/IMGTHLA/hla.dat \
     --save_dir ${project_dir}/assets/mhc_references \
     --functions_file ${project_dir}/scripts/mhc_reference_functions.R
 ```
-The script `convert_hla_dat.R` will convert the information in the `hla.dat` file to two csv files:
-- `all_allele_features.csv` - this contains TODO
-- `all_allele_info.csv` - this contains TODO
+The script `convert_hla_dat.R` will convert the information in the `hla.dat` file to two csv files containing information taken from the `hla.dat` file:
+- `all_allele_features.csv`. This contains the avaliable sequence information of different features (intron, exon, UTR) for each HLA allele. This includes the columns:
+    - start - the start position of the feature.
+    - end - the end position of the feature.
+    - type - either intron, exon or UTR.
+    - number - The exon/intron numbers. These are counted from the 5' end.
+    - length - The length of the feature.
+    - allele_name - The name of the allele.
+    - gene - The name of the gene.
+    - feature_seq. The sequence of the feature.
+- `all_allele_info.csv`. This contains information from  on the HLA alleles. This includes the columns:
+    - allele_name - name of the allele. E.g. A*01:01:01:01
+    - cell_lines - Cell lines from which the sequence was obtained.
+    - gene - the gene name. E.g. HLA-A
+    - ethnic - Possible ethnic origin of the cells sequenced for this allele.
+    - partial - Differentiates between complete and partial region.
+    - cds_line - The line from hla.dat that defined the known positions of the CDS sequence. 
+    - translation - The translated protein. 
+    - seq_length - the length of the sequence. 
+    - seq - the avaliable sequence of the allele. 
 
-Then create the references using `create_mhc_hammer_references.R`
+For more information on hla.dat see https://github.com/ANHIG/IMGTHLA/blob/Latest/Manual.md.
+
+**Step 2:** Run `create_mhc_hammer_references.R`. This script creates the reference files required to run MHC Hammer.
 
 ```bash
 singularity exec -B ${PWD}:${PWD} $mhc_hammer_preprocessing_sif Rscript ${project_dir}/scripts/create_mhc_hammer_references.R \
@@ -101,7 +120,7 @@ singularity exec -B ${PWD}:${PWD} $mhc_hammer_preprocessing_sif Rscript ${projec
 This creates the following:
 * ./assets/mhc_references/gtf/mhc.gtf - GTF file with all HLA alleles in the IMGT database
 * ./assets/mhc_references/genome/mhc_genome.fasta - the complete genome (DNA) sequence for all alleles in the IMGT database
-* ./assets/mhc_references/genome/mhc_genome_strand.fasta - the complete genome (DNA) sequence for all alleles in the IMGT database. This version is strand specific which means that alleles on the reverse strand (HLA-B and HLA-C) TODO
+* ./assets/mhc_references/genome/mhc_genome_strand.fasta - the complete genome (DNA) sequence for all alleles in the IMGT database. This version is strand specific.
 * ./assets/mhc_references/transcriptome/ the complete transcriptome (RNA) sequence for all alleles in the IMGT database.
 
 ### Creating the HLA kmer files
