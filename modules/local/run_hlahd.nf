@@ -1,9 +1,10 @@
 process HLAHD_LOCAL { 
     tag "${meta.patient_id}"
 
-    container "library://tpjones15/default/final_lohhla:latest"
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_low'
+    label 'error_retry'
 
     input:
     tuple val(meta), path(fqs)
@@ -20,7 +21,7 @@ process HLAHD_LOCAL {
     script: 
     def args = task.ext.args ?: ''
     """
-    echo "local"
+    
     # export paths to local binaries
     export PATH=\${PATH}:\${BOWTIE2_PATH}:\${HLAHD_BIN_PATH}
     bash \${HLAHD_PATH}/bin/hlahd.sh \
@@ -54,12 +55,16 @@ process HLAHD_LOCAL {
     # The patient hla allele types csv is not produced and the job will be restarted with more resources
     if [ -f result/${meta.patient_id}_A.est.txt ] \
         && [ -f result/${meta.patient_id}_B.est.txt ] \
-        && [ -f result/${meta.patient_id}_C.est.txt ]; then
+        && [ -f result/${meta.patient_id}_C.est.txt ] \
+        && [ -f result/${meta.patient_id}_E.est.txt ] \
+        && [ -f result/${meta.patient_id}_F.est.txt ] \
+        && [ -f result/${meta.patient_id}_G.est.txt ]; then
     
         Rscript ${projectDir}/bin/hlahd_parse_output.R \
         --hlahd_folder result \
         --gtf_path ${mhc_gtf} \
-        --sample_id ${meta.patient_id}
+        --sample_id ${meta.patient_id} \
+        --genes A B C E F G
 
         mv result/${meta.patient_id}_hla_alleles.csv ./
 
@@ -143,17 +148,21 @@ process HLAHD {
     # The patient hla allele types csv is not produced and the job will be restarted with more resources
     if [ -f result/${meta.patient_id}_A.est.txt ] \
         && [ -f result/${meta.patient_id}_B.est.txt ] \
-        && [ -f result/${meta.patient_id}_C.est.txt ]; then
+        && [ -f result/${meta.patient_id}_C.est.txt ] \
+        && [ -f result/${meta.patient_id}_E.est.txt ] \
+        && [ -f result/${meta.patient_id}_F.est.txt ] \
+        && [ -f result/${meta.patient_id}_G.est.txt ]; then
     
         Rscript ${projectDir}/bin/hlahd_parse_output.R \
         --hlahd_folder result \
         --gtf_path ${mhc_gtf} \
-        --sample_id ${meta.patient_id}
+        --sample_id ${meta.patient_id} \
+        --genes A B C E F G
 
         mv result/${meta.patient_id}_hla_alleles.csv ./
 
     else 
-        echo "HLAHD failed to produce HLA A, B and C estimates"
+        echo "HLAHD failed to produce estimates for all genes"
         echo "This process will be restarted with more resources"
     fi
     

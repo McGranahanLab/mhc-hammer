@@ -42,17 +42,17 @@ normal_known_sjs <- fread(normal_known_sjs_path)
 
 setnames(tumour_novel_sjs,
          old = c("n_unique_reads", "n_multtimap_reads", "max_overhang", "canonical_sj_read_count",
-                 "intron_n_reads", "ratio", "total_read_count"),
+                 "intron_n_reads", "novel_transcript_proportion", "total_read_count"),
          new = c("tumour_n_unique_reads", "tumour_n_multtimap_reads", "tumour_max_overhang", 
                  "tumour_canonical_sj_read_count", "tumour_intron_n_reads", 
-                 "tumour_ratio", "tumour_total_read_count"))
+                 "tumour_novel_transcript_proportion", "tumour_total_read_count"))
 
 setnames(normal_novel_sjs,
          old = c("n_unique_reads", "n_multtimap_reads", "max_overhang", "canonical_sj_read_count",
-                 "intron_n_reads", "ratio", "total_read_count"),
+                 "intron_n_reads", "novel_transcript_proportion", "total_read_count"),
          new = c("normal_n_unique_reads", "normal_n_multtimap_reads", "normal_max_overhang", 
                  "normal_canonical_sj_read_count", "normal_intron_n_reads", 
-                 "normal_ratio", "normal_total_read_count"))
+                 "normal_novel_transcript_proportion", "normal_total_read_count"))
 
 tumour_normal_sjs <- merge(tumour_novel_sjs, normal_novel_sjs,
                            by = c("allele", "start", "end", "strand", "intron_motif",
@@ -263,10 +263,10 @@ for(line_idx in 1:nrow(tumour_normal_sjs)){
 }
 
 
-# add in the ratio change
-tumour_normal_sjs[, ratio_change := (tumour_ratio - normal_ratio)]
-tumour_normal_sjs[tumour_ratio > normal_ratio, ratio_changev2 := (tumour_ratio - normal_ratio)/tumour_ratio]
-tumour_normal_sjs[tumour_ratio <= normal_ratio, ratio_changev2 := -1*(normal_ratio - tumour_ratio)/normal_ratio]
+# add in the novel_transcript_proportion change
+tumour_normal_sjs[, novel_transcript_proportion_change := (tumour_novel_transcript_proportion - normal_novel_transcript_proportion)]
+tumour_normal_sjs[tumour_novel_transcript_proportion > normal_novel_transcript_proportion, novel_transcript_proportion_changev2 := (tumour_novel_transcript_proportion - normal_novel_transcript_proportion)/tumour_novel_transcript_proportion]
+tumour_normal_sjs[tumour_novel_transcript_proportion <= normal_novel_transcript_proportion, novel_transcript_proportion_changev2 := -1*(normal_novel_transcript_proportion - tumour_novel_transcript_proportion)/normal_novel_transcript_proportion]
 
 for(line_idx in 1:nrow(tumour_normal_sjs)){
   

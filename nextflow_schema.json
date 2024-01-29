@@ -1,8 +1,8 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema",
-    "$id": "https://raw.githubusercontent.com/McGranahanLab/mhc_hammer/main/nextflow_schema.json",
-    "title": "McGranahanLab/mhc_hammer pipeline parameters",
-    "description": "HLA loss of heterozygosity detection ",
+    "$id": "https://raw.githubusercontent.com/McGranahanLab/mhc-hammer/main/nextflow_schema.json",
+    "title": "MHC Hammer pipeline parameters",
+    "description": "Pipeline to detect HLA disruption",
     "type": "object",
     "definitions": {
         "input_output_options": {
@@ -20,14 +20,14 @@
                     "mimetype": "text/csv",
                     "pattern": "^\\S+\\.csv$",
                     "schema": "assets/schema_input.json",
-                    "description": "Path to comma-separated file containing information about the samples in the experiment.",
-                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 8 columns, and a header row. See [README](https://github.com/McGranahanLab/mhc_hammer/blob/main).",
+                    "description": "Path to csv file containing information about the samples. See README for more information.",
+                    "help_text": "See README for more information.",
                     "fa_icon": "fas fa-file-csv"
                 },
                 "outdir": {
                     "type": "string",
                     "description": "Path to the output directory where the results will be saved.",
-                    "default": "./results",
+                    "default": "./mhc_hammer_results",
                     "fa_icon": "fas fa-folder-open"
                 }
             }
@@ -163,7 +163,8 @@
                 "publish_dir_mode": {
                     "type": "string",
                     "default": "copy",
-                    "description": "method for publishing files"
+                    "description": "method for publishing files",
+                    "hidden": true
                 }
             }
         },
@@ -176,22 +177,41 @@
                 "run_bam_subsetting": {
                     "type": "boolean",
                     "default": true,
-                    "description": "If inputting subset bam files, you can skip this step by setting this to false"
+                    "description": "If inputting subset bam files, you can skip the subset BAM step by setting this to false"
                 },
                 "run_rna_analysis": {
                     "type": "boolean",
                     "default": true,
-                    "description": "Boolean whether mhc_hammer RNA subworkflow will be run"
+                    "description": "Controls whether RNA subworkflow will be run",
+                    "hidden": true
                 },
                 "run_alt_splicing_analysis": {
                     "type": "boolean",
                     "default": true,
-                    "description": "Boolean whether alt splicing subworkflow will be run"
+                    "description": "Controls whether the alt splicing subworkflow will be run",
+                    "hidden": true
+                },
+                "run_hlahd": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "If inputting HLA alleles you can skip running HLA-HD by setting this parameter to false. You need to have an additional column in the input file with a column called "
+                },
+                "hlahd_local_install": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "If true the locally downloaded HLA-HD in the bin folder will be used. If false the hlahd.sif container will be used. See README for more details."
+                },
+                "include_unmapped_reads_in_library_size": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "If true, unmapped reads are included in library size (e.g. samtools view -c -f 1 -F 2304). If false, unmapped reads are not included in library size (e.g. samtools view -c -f 1 -F 2308).",
+                    "hidden": true
                 },
                 "singularityDir": {
                     "type": "string",
                     "description": "Path to directory to store singularity images downloaded by this pipeline",
-                    "format": "directory-path"
+                    "default": "./singularity_images",
+                    "hidden": true
                 }
             }
         },
@@ -204,45 +224,70 @@
                 "unmapped_reads": {
                     "type": "boolean",
                     "default": true,
-                    "description": "Boolean whether unmapped reads will be extracted when producing subset bam"
+                    "description": "If true unmapped reads in the input BAM file are included in the subsetted BAM file",
+                    "hidden": true
                 },
                 "mhc_coords": {
                     "type": "string",
-                    "description": "mhc region coordinates file (txt file with format chr6:start:stop)",
+                    "description": "Path to the file containing a set of genomic coordinates (chr:star-stop). Any read in the input BAM file that lies within these coordinates is included in the subsetted BAM.",
                     "default": "${projectDir}/assets/mhc_coords_chr6.txt",
-                    "format": "file-path"
+                    "format": "file-path",
+                    "hidden": true
                 },
                 "fish_reads": {
                     "type": "boolean",
-                    "description": "Boolean whether reads containing 30 kmer sequences of HLA genes will be retrieved during when producing subset bam",
-                    "default": true
+                    "description": "If true reads in the input BAM files that contain a kmer from the kmer file (specified with the --kmer_file parameter) are included in the subsetted BAM.",
+                    "default": true,
+                    "hidden": true
                 },
                 "fish_reads_only": {
                     "type": "boolean",
-                    "description": "Boolean whether only the fishing reads step is run for the bam subsetting process."
+                    "description": "If true only reads that contain a kmer from the kmer file are included in the subsetted BAM.",
+                    "default": false,
+                    "hidden": true
                 },
                 "kmer_file": {
                     "type": "string",
-                    "description": "If fish_reads == true, file path to 30 kmer file",
-                    "default": "${projectDir}/assets/kmer_files/imgt_30mers.fa"
+                    "description": "The file path to kmer file",
+                    "default": "${projectDir}/assets/kmer_files/imgt_30mers.fa",
+                    "hidden": true
                 },
                 "contig_reads": {
                     "type": "boolean",
                     "default": true,
-                    "description": "Boolean whether reads mapping to contigs will be extracted when producing subset bam (if bam file is aligned to GRCh37 - suggest true)"
+                    "description": "If true reads that map to either: (1) any contig in the input BAM files (if the --contigs_file parameter is `null`), or (2) specific contigs listed in the file specified with the --contigs_file parameter, are included in the subsetted BAM file.",
+                    "hidden": true
                 },
                 "contigs_file": {
                     "type": "string",
-                    "description": "Path to file with a contig on each line. Reads mapping to these contigs will be extracted in the subset bam process if params.contig_reads=  true"
+                    "description": "This file should contain a list of contigs present in the input BAM. Reads that map to these contigs will be included in the subsetted BAM file. ",
+                    "hidden": true
                 },
                 "save_flagstat": {
                     "type": "boolean",
-                    "description": "save flagstat output for sample bam",
-                    "default": true
+                    "description": "Save flagstat output for sample bam",
+                    "default": true,
+                    "hidden": true
                 },
                 "save_subset_bams": {
                     "type": "boolean",
-                    "description": "save subset bams containing potential HLA reads"
+                    "description": "Save subset bams containing potential HLA reads",
+                    "default": false,
+                    "hidden": true
+                }
+            }
+        },
+        "flagstat_params": {
+            "title": "Flagstat parameters",
+            "type": "object",
+            "description": "Flagstat",
+            "default": "",
+            "properties": {
+                "save_flagstat": {
+                    "type": "boolean",
+                    "description": "Save flagstat output.",
+                    "default": true,
+                    "hidden": true
                 }
             }
         },
@@ -254,28 +299,33 @@
             "properties": {
                 "save_hla_fqs": {
                     "type": "boolean",
-                    "description": "Save HLA FQs containing potential HLA reads"
+                    "description": "Save HLA FQs containing potential HLA reads",
+                    "default": false,
+                    "hidden": true
                 }
             }
         },
         "hlahd_job_params": {
-            "title": "HLAHD job params",
+            "title": "HLA-HD job params",
             "type": "object",
             "description": "HLAHD specific parameters",
             "default": "",
             "properties": {
                 "hlahd_ignored_read_length": {
                     "type": "integer",
-                    "description": "A read whose length is shorter than this parameter is ignored"
+                    "description": "An HLA-HD parameter. A read whose length is shorter than this parameter is ignored.",
+                    "hidden": true
                 },
                 "hlahd_trimming_ratio": {
                     "type": "number",
-                    "description": "Trimming option. If a match sequence is not found in the dictionary, trim the read until some sequence is matched to or reaches this ratio"
+                    "description": "An HLA-HD parameter. If a match sequence is not found in the dictionary, trim the read until some sequence is matched to or reaches this ratio.",
+                    "hidden": true
                 },
                 "save_hlahd_predictions": {
                     "type": "boolean",
                     "description": "Save the HLAHD predicted alleles (only the first prediction is output)",
-                    "default": true
+                    "default": true,
+                    "hidden": true
                 }
             }
         },
@@ -287,68 +337,65 @@
             "properties": {
                 "mhc_fasta": {
                     "type": "string",
-                    "description": "path to HLA fasta",
-                    "default": "${projectDir}/assets/mhc_references/genome/mhc_genome_strand.fasta"
+                    "description": "Path to HLA fasta",
+                    "default": "${projectDir}/assets/mhc_references/genome/mhc_genome_strand.fasta",
+                    "hidden": true
                 },
                 "mhc_gtf": {
                     "type": "string",
-                    "description": "path to HLA gtf",
-                    "default": "${projectDir}/assets/mhc_references/gtf/mhc.gtf"
+                    "description": "Path to HLA gtf",
+                    "default": "${projectDir}/assets/mhc_references/gtf/mhc.gtf",
+                    "hidden": true
                 },
                 "mhc_transcriptome_fasta": {
                     "type": "string",
-                    "description": "path to HLA transcriptome fasta",
-                    "default": "${projectDir}/assets/mhc_references/transcriptome/mhc_cds.fasta"
+                    "description": "Path to HLA transcriptome fasta",
+                    "default": "${projectDir}/assets/mhc_references/transcriptome/mhc_cds.fasta",
+                    "hidden": true
                 },
                 "save_references": {
                     "type": "boolean",
-                    "description": "Save patient specific HLA class I gene reference files",
-                    "default": true
+                    "description": "Save patient specific HLA reference files",
+                    "default": true,
+                    "hidden": true
                 }
             }
         },
-        "alignment_job_params": {
-            "title": "Alignment job params",
-            "type": "object",
-            "description": "Alignment specific parameters",
-            "default": "",
-            "properties": {
-                "save_novo_bam": {
-                    "type": "boolean",
-                    "description": "Save bam file containing all reads aligned to personalised HLA reference"
-                }
-            }
-        },
-        "make_hla_bams_job_parameters": {
-            "title": "Make HLA bams job parameters",
+        "hla_alignment": {
+            "title": "HLA alignment",
             "type": "object",
             "description": "Specific parameters for the generation of HLA bam files",
             "default": "",
             "properties": {
+                "save_unfiltered_novoalign_bam": {
+                    "type": "boolean",
+                    "description": "Save unfiltered novoalign BAM files.",
+                    "default": false,
+                    "hidden": true
+                },
+                "save_unfiltered_star_bam": {
+                    "type": "boolean",
+                    "description": "Save unfiltered STAR BAM files.",
+                    "default": false,
+                    "hidden": true
+                },
                 "max_mismatch": {
                     "type": "integer",
-                    "description": "maximum number of mismatches between aligned read and personalised reference",
-                    "default": 1
+                    "description": "The maximum number of mismatches allowed in a sequencing read aligned to the patient specific HLA reference. If a read alignment has more than this number of mismatches, it will be removed from the filtered HLA BAM file.",
+                    "default": 1,
+                    "hidden": true
                 },
-                "save_hla_bams_dna": {
+                "save_filtered_bams": {
                     "type": "boolean",
-                    "description": "Save HLA allele specific bam files (DNA)",
-                    "default": true
+                    "description": "Save filtered BAM files.",
+                    "default": true,
+                    "hidden": true
                 },
-                "save_read_counts_dna": {
+                "save_filtered_read_counts": {
                     "type": "boolean",
-                    "description": "Save file containing the number of reads aligning to patient HLA alleles before and after mismatch filtering (DNA)",
-                    "default": true
-                },
-                "save_hla_bams_rna": {
-                    "type": "boolean",
-                    "description": "Save HLA allele specific bam files (RNA)",
-                    "default": true
-                },
-                "save_read_counts_rna": {
-                    "type": "boolean",
-                    "description": "Save file containing the number of reads aligning to patient HLA alleles before and after mismatch filtering (RNA)",
-                    "default": true
+                    "description": "Save file containing the read counts before and after filtering based on the number of mismatches.",
+                    "default": true,
+                    "hidden": true
                 }
             }
         },
@@ -358,65 +405,62 @@
             "description": "Mutation calling specific parameters",
             "default": "",
             "properties": {
-                "save_filtered_vcfs": {
+                "save_vcfs": {
                     "type": "boolean",
-                    "description": "Save HLA allele specific vcf files (both sample and patient level)",
-                    "default": true
+                    "description": "Save the VCFs.",
+                    "default": true,
+                    "hidden": true
                 },
                 "save_vep_output": {
                     "type": "boolean",
-                    "description": "Save vep output files (both sample and patient level)",
-                    "default": true
+                    "description": "Save the vep output files",
+                    "default": true,
+                    "hidden": true
                 }
             }
         },
-        "alt_splicing_job_parameters": {
-            "title": "Alt splicing job parameters",
+        "hla_alt_splicing_job_parameters": {
+            "title": "HLA alternative splicing job parameters",
             "type": "object",
-            "description": "Exon skipping detection specific parameters",
+            "description": "Alternative splicing detection specific parameters",
             "default": "",
             "properties": {
-                "intron_motif_filter": {
-                    "type": "integer",
-                    "default": 0
-                },
                 "uniq_num_across_junc": {
                     "type": "integer",
-                    "default": 2
-                },
-                "annotation_filter": {
-                    "type": "integer",
-                    "default": 0
+                    "description": "STAR parameter specifying the minimum number of unique reads supporting a junction in the first STAR run for the junction to be called.",
+                    "default": 2,
+                    "hidden": true
                 },
                 "save_sample_sj_tab": {
                     "type": "boolean",
                     "description": "Save sample splice junction tables",
-                    "default": true
+                    "default": true,
+                    "hidden": true
                 },
                 "save_cohort_sj_tab": {
                     "type": "boolean",
-                    "description": "save cohort level splice junction table",
-                    "default": true
+                    "description": "Save cohort level splice junction table",
+                    "default": true,
+                    "hidden": true
                 },
                 "save_novel_splice_junctions": {
                     "type": "boolean",
                     "description": "Save novel splice junctions table",
-                    "default": true
-                },
-                "save_star_aligned_bams": {
-                    "type": "boolean",
-                    "description": "Save star aligned HLA allele specific bams (used for detecting exon skipping)"
+                    "default": true,
+                    "hidden": true
                 },
                 "save_sample_kmer": {
                     "type": "boolean",
-                    "default": true
+                    "default": false,
+                    "hidden": true
                 },
                 "codon_table": {
                     "type": "string",
                     "default": "${projectDir}/assets/codon_table.csv",
-                    "description": "Path",
+                    "description": "Path to a file that contains a mapping between the codons and amino acids.",
                     "format": "file-path",
-                    "mimetype": "csv"
+                    "mimetype": "csv",
+                    "hidden": true
                 }
             }
         },
@@ -429,21 +473,46 @@
                 "min_depth": {
                     "type": "integer",
                     "default": 30,
-                    "description": "Min depth required for the detection",
+                    "description": "SNPs with less than min_depth in the germline will not be used to calculate DNA AIB and copy number. ",
                     "hidden": true
                 }
             }
         },
-        "hla_allele_expression_params": {
-            "title": "HLA allele expression params",
+        "quality_control_parameters": {
+            "title": "Quality control parameters",
             "type": "object",
-            "description": "HLA allele expression specific parameters",
+            "description": "Cutoff values for passing/failing samples/genes in the output tables.",
             "default": "",
             "properties": {
-                "min_frac_unique_reads": {
+                "min_frac_mapping_uniquely": {
                     "type": "number",
-                    "default": 0.1,
-                    "description": "In heterozygous HLA genes, the minimum fraction of reads that must align uniquely to either allele to be able to quantify allele specific expression"
+                    "description": "The minimum fraction of RNAseq reads that need to align uniquely for the sample/gene to pass.",
+                    "default": 0.5,
+                    "hidden": true
+                },
+                "max_frac_mapping_multi_gene": {
+                    "type": "number",
+                    "description": "The maximum fraction of RNAseq reads that can to align to multiple HLA genes for the sample/gene to pass.",
+                    "default": 0.05,
+                    "hidden": true
+                },
+                "min_number_of_snps": {
+                    "type": "integer",
+                    "description": "The minimum number of filtered SNPs in a gene for the sample/gene to pass.",
+                    "default": 10,
+                    "hidden": true
+                },
+                "max_copy_number_range": {
+                    "type": "number",
+                    "description": "The maximum range in the DNA copy number for the sample/gene to pass.",
+                    "default": 2.5,
+                    "hidden": true
+                },
+                "min_expected_depth": {
+                    "type": "number",
+                    "description": "The minimum expected DNA depth required for the sample/gene to pass.",
+                    "default": 10,
+                    "hidden": true
                 }
             }
         }
@@ -477,22 +546,16 @@
             "$ref": "#/definitions/generate_references_params"
         },
         {
-            "$ref": "#/definitions/alignment_job_params"
-        },
-        {
-            "$ref": "#/definitions/make_hla_bams_job_parameters"
+            "$ref": "#/definitions/hla_alignment"
         },
         {
             "$ref": "#/definitions/mutation_calling_parameters"
         },
         {
-            "$ref": "#/definitions/alt_splicing_job_parameters"
+            "$ref": "#/definitions/hla_alt_splicing_job_parameters"
         },
         {
             "$ref": "#/definitions/cn_and_aib_job_parameters"
-        },
-        {
-            "$ref": "#/definitions/hla_allele_expression_params"
         }
     ]
 }

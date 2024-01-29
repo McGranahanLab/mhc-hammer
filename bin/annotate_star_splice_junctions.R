@@ -45,13 +45,13 @@ star_sj_tab <- fread(sj_tab_path)
 setnames(star_sj_tab, 
          c("allele", "start", "end", "strand", "intron_motif", "annotation",
            "n_unique_reads", "n_multtimap_reads", "max_overhang"))
-star_sj_tab[, gene := gsub("(hla_.).*", "\\1", allele)]
 
 # get the GTF files 
 gtf <- fread(gtf_path)
 setnames(gtf, c("seqname",	"source",	"type",	"feature_start",	"feature_end",	
                 "score",	"strand",	"frame",	"other_values"))
 gtf[, feature_name := gsub('.*feature_name "(.*?)".*', "\\1", other_values)]
+gtf[, gene := gsub("(hla_.).*", "\\1", seqname)]
 
 # create a table of known splice sites
 known_splice_sites <- gtf[type == "intron", c("seqname", "feature_start", "feature_end", "feature_name")]
@@ -63,6 +63,7 @@ star_sj_tab <- merge(star_sj_tab, known_splice_sites,
                      by.x = c("allele", "start", "end"),
                      by.y = c("seqname", "feature_start", "feature_end"),
                      all = TRUE)
+star_sj_tab[, gene := gsub("(hla_.).*", "\\1", allele)]
 
 # splice junctions not in gtf are novel
 star_sj_tab[is.na(splice_site_type), splice_site_type :="novel"]
@@ -82,11 +83,8 @@ for(line_idx in 1:nrow(novel_sjs)){
   sj_start <- novel_sjs[line_idx]$start
   sj_end <- novel_sjs[line_idx]$end
   sj_chr <- novel_sjs[line_idx]$allele
-  gene <- novel_sjs[line_idx]$gene
-  
-  if(!gene %in% c("hla_a", "hla_b", "hla_c")){
-    stop("Gene should be hla_a, hla_b or hla_c")
-  }
+  gene_name <- novel_sjs[line_idx]$gene
+  strand <- unique(gtf[gene == gene_name]$strand)
   
   # check if splice junction lies completely within a single feature
   sj_within_feature <- check_sj_within_feature(sj_chr, sj_start, sj_end, gtf)
@@ -100,9 +98,9 @@ for(line_idx in 1:nrow(novel_sjs)){
   novel_sjs[line_idx, exon_skipped_names := exon_skip$exon_skipped_names]   
   
   # check if the end of an exon is skipped
-  if(gene == "hla_a"){
+  if(strand == "+"){
     exon_end_skip <- check_exon_end_skip_forward_strand(sj_chr, sj_start, gtf)
-  }else if(gene %in% c("hla_b",  "hla_c")){
+  }else if(strand == "-"){
     exon_end_skip <- check_exon_end_skip_reverse_strand(sj_chr, sj_end, gtf)
   }
   novel_sjs[line_idx, end_exon_skip := exon_end_skip$end_exon_skip]
@@ -111,9 +109,9 @@ for(line_idx in 1:nrow(novel_sjs)){
   novel_sjs[line_idx, end_exon_skipped_end := exon_end_skip$end_exon_skipped_end]
   
   # check if exon start skipped
-  if(gene == "hla_a"){
+  if(strand == "+"){
     exon_start_skip <- check_exon_start_skip_forward_strand(sj_chr, sj_end, gtf)
-  }else if(gene %in% c("hla_b",  "hla_c")){
+  }else if(strand == "-"){
     exon_start_skip <- check_exon_start_skip_reverse_strand(sj_chr, sj_start, gtf)
   }
   novel_sjs[line_idx, start_exon_skip := exon_start_skip$start_exon_skip]
@@ -122,9 +120,9 @@ for(line_idx in 1:nrow(novel_sjs)){
   novel_sjs[line_idx, start_exon_skipped_end := exon_start_skip$start_exon_skipped_end]
   
   # check for partial intron start retention
-  if(gene == "hla_a"){
+  if(strand == "+"){
     intron_start_retained <- check_intron_start_retained_forward_strand(sj_chr, sj_start, gtf)
-  }else if(gene %in% c("hla_b",  "hla_c")){
+  }else if(strand == "-"){
     intron_start_retained <- check_intron_start_retained_reverse_strand(sj_chr, sj_end, gtf)
   }
   novel_sjs[line_idx, start_intron_retained := intron_start_retained$start_intron_retained]
@@ -133,9 +131,9 @@ for(line_idx in 1:nrow(novel_sjs)){
   novel_sjs[line_idx, start_intron_retained_end := intron_start_retained$start_intron_retained_end]
   
   # check for partial intron end retention
-  if(gene == "hla_a"){
+  if(strand == "+"){
     intron_end_retained <- check_intron_end_retained_forward_strand(sj_chr, sj_end, gtf)
-  }else if(gene %in% c("hla_b",  "hla_c")){
+  }else if(strand == "-"){
     intron_end_retained <- check_intron_end_retained_reverse_strand(sj_chr, sj_start, gtf)
   }
   novel_sjs[line_idx, end_intron_retained := intron_end_retained$end_intron_retained]
@@ -200,7 +198,8 @@ for(line_idx in 1:nrow(novel_sjs)){
   }
   
   allele <- novel_sjs[line_idx]$allele
-  gene <- novel_sjs[line_idx]$gene
+  gene_name <- novel_sjs[line_idx]$gene
+  strand <- unique(gtf[gene == gene_name]$strand)
   
   novel_start <- novel_sjs[line_idx]$start
   novel_end <- novel_sjs[line_idx]$end
@@ -224,7 +223,7 @@ for(line_idx in 1:nrow(novel_sjs)){
   original_seq <- toupper(unlist(strsplit(allele_gtf$seq, "")))
   original_exon_seq <- toupper(unlist(strsplit(allele_gtf[type == "exon"]$seq, "")))
   
-  if(gene %in% c("hla_b", "hla_c")){
+  if(strand == "-"){
     original_exon_seq_dt <- data.table(pos = 1:length(original_exon_seq),
                                        base = original_exon_seq)
     original_exon_seq_dt[base == "G", new_base := "C"]
@@ -251,7 +250,7 @@ for(line_idx in 1:nrow(novel_sjs)){
   
   if(novel_sjs[line_idx]$novel_sj_cat %in% c("end_intron_retained", "start_intron_retained") ){
     
-    if(novel_sjs[line_idx]$novel_sj_cat == "start_intron_retained" & gene == "hla_a"){
+    if(novel_sjs[line_idx]$novel_sj_cat == "start_intron_retained" & strand == "+"){
       # update the intron start to be the splice start
       novel_allele_gtf[type == "intron" & 
                          ( novel_start >= feature_start &
@@ -260,7 +259,7 @@ for(line_idx in 1:nrow(novel_sjs)){
       
     }
     
-    if(novel_sjs[line_idx]$novel_sj_cat == "end_intron_retained" & gene == "hla_a"){
+    if(novel_sjs[line_idx]$novel_sj_cat == "end_intron_retained" & strand == "+"){
       
       novel_allele_gtf[type == "intron" & 
                          ( novel_end >= feature_start &
@@ -269,7 +268,7 @@ for(line_idx in 1:nrow(novel_sjs)){
       
     }
     
-    if(novel_sjs[line_idx]$novel_sj_cat == "start_intron_retained" & gene %in% c("hla_b", "hla_c")){
+    if(novel_sjs[line_idx]$novel_sj_cat == "start_intron_retained" & strand == "-"){
       
       novel_allele_gtf[type == "intron" & 
                          ( novel_end >= feature_start &
@@ -278,7 +277,7 @@ for(line_idx in 1:nrow(novel_sjs)){
       
     }
     
-    if(novel_sjs[line_idx]$novel_sj_cat == "end_intron_retained" & gene %in% c("hla_b", "hla_c")){
+    if(novel_sjs[line_idx]$novel_sj_cat == "end_intron_retained" & strand == "-"){
       
       novel_allele_gtf[type == "intron" & 
                          ( novel_start >= feature_start &
@@ -327,7 +326,7 @@ for(line_idx in 1:nrow(novel_sjs)){
   }
   
   new_exon_seq <- full_seq_dt[translated == TRUE]$base
-  if(gene %in% c("hla_b", "hla_c")){
+  if(strand == "-"){
     new_exon_seq_dt <- data.table(pos = 1:length(new_exon_seq),
                                   base = new_exon_seq)
     new_exon_seq_dt[base == "G", new_base := "C"]
@@ -476,9 +475,9 @@ for(line_idx in 1:nrow(novel_sjs)){
   }
 }
 
-# add the novel to canonical ratio
+# add the novel to canonical novel_transcript_proportion
 novel_sjs[, total_read_count := canonical_sj_read_count + n_unique_reads]
-novel_sjs[, ratio := n_unique_reads/total_read_count]
+novel_sjs[, novel_transcript_proportion := n_unique_reads/total_read_count]
 
 # add a broad category 
 novel_sjs[novel_sj_cat %in% c("end_intron_retained", "start_intron_retained"),

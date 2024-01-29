@@ -63,10 +63,11 @@ calculate_logr_aib <- function(gl_library_size,
   
   if(nrow(allele1_gl_coverage) == 0 | nrow(allele2_gl_coverage) == 0 |
      nrow(allele1_tumour_coverage) == 0 | nrow(allele2_tumour_coverage) == 0){
-    return(list(paired_t_test = as.numeric(NA),
-                paired_wilcoxon_test = as.numeric(NA),
-                n_snps = 0,
-                boxplot = ggplot()))
+    # return(list(paired_t_test = as.numeric(NA),
+    #             paired_wilcoxon_test = as.numeric(NA),
+    #             n_snps = 0,
+    #             boxplot = ggplot()))
+    stop("Why are there no lines?")
   }
   
   coverage_table_at_mismatch <- data.table(allele1_mismatch_pos = allele1_snps$chromEnd,
@@ -196,25 +197,6 @@ calculate_cn <- function(bin_size =  150, gamma = 1,
                          tumour_library_size,
                          gtf_path,
                          make_plot){
-  
-  cat("allele1_name <- ", allele1_name, "\n")
-  cat("allele2_name <- ", allele2_name, "\n")
-  
-  cat("allele1_gl_coverage_file <- ", allele1_gl_coverage_file, "\n")
-  cat("allele1_tumour_coverage_file <- ", allele1_tumour_coverage_file, "\n")
-  
-  cat("allele2_gl_coverage_file <- ", allele2_gl_coverage_file, "\n")
-  cat("allele2_tumour_coverage_file <- ", allele2_tumour_coverage_file, "\n")
-  
-  cat("allele1_snp_bed_file <- ", allele1_snp_bed_file, "\n")
-  cat("allele2_snp_bed_file <- ", allele2_snp_bed_file, "\n")
-  
-  cat("purity <- ", purity, "\n")
-  cat("ploidy <- ", ploidy, "\n")
-  
-  cat("gl_library_size <- ", gl_library_size, "\n")
-  cat("tumour_library_size <- ", tumour_library_size, "\n")
-  cat("gtf_path <- ", gtf_path, "\n")
   
   allele1_snp <- fread(allele1_snp_bed_file, sep = "\t")
   allele2_snp <- fread(allele2_snp_bed_file, sep = "\t")
@@ -815,13 +797,14 @@ calculate_depth_aib  <- function(allele1_name,
   allele2_coverage <- fread(allele2_unique_coverage_file)
   
   if(nrow(allele1_coverage) == 0 | nrow(allele2_coverage) == 0){
-    return(list(paired_t_test = NA,
-                paired_wilcoxon_test = NA,
-                boxplot = ggplot(),
-                allele1_median_dp = NA,
-                allele2_median_dp = NA,
-                allele1_n_snps_with_coverage = nrow(allele1_coverage),
-                allele2_n_snps_with_coverage = nrow(allele2_coverage)))
+    # return(list(paired_t_test = NA,
+    #             paired_wilcoxon_test = NA,
+    #             boxplot = ggplot(),
+    #             allele1_median_dp = NA,
+    #             allele2_median_dp = NA,
+    #             allele1_n_snps_with_coverage = nrow(allele1_coverage),
+    #             allele2_n_snps_with_coverage = nrow(allele2_coverage)))
+    stop("Why are there no lines?")
   }
   
   setnames(allele1_coverage, c("position", "allele1_depth"))
@@ -942,16 +925,6 @@ calculate_exp_dp <- function(allele1_name,
                              gl_library_size,
                              tumour_library_size){
   
-  cat("allele1_name <- ", allele1_name, "\n")
-  cat("allele2_name <- ", allele2_name, "\n")
-  cat("allele1_gl_coverage_file <- ", allele1_gl_coverage_file, "\n")
-  cat("allele2_gl_coverage_file <- ", allele2_gl_coverage_file, "\n")
-  cat("allele1_snp_bed_file <- ", allele1_snp_bed_file, "\n")
-  cat("allele2_snp_bed_file <- ", allele2_snp_bed_file, "\n")
-  cat("purity <- ", purity, "\n")
-  cat("gl_library_size <- ", gl_library_size, "\n")
-  cat("tumour_library_size <- ", tumour_library_size, "\n")
-  
   allele1_snp <- fread(allele1_snp_bed_file, sep = "\t")
   allele2_snp <- fread(allele2_snp_bed_file, sep = "\t")
   
@@ -1031,9 +1004,9 @@ calculate_tumour_normal_comparison <- function(allele_name,
                                                allele_mismatch_bed_file,
                                                allele_gl_coverage_file,
                                                allele_tumour_coverage_file,
-                                               allele_order,
                                                make_plot){
   
+
   mult_factor <- gl_library_size/tumour_library_size
   
   allele_mismatch <- fread(allele_mismatch_bed_file, sep = "\t")

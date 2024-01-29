@@ -43,14 +43,14 @@ workflow GENERATE_RNA_NOVOALIGN_BAMS {
 
     emit:
 
-    // // Channel containing file with passed allele pairs 
+    // Channel containing file with passed allele pairs 
     passed_heterozygous_hla_genes_ch = MAKE_HLA_ALLELE_BAMS.out.passed_heterozygous_hla_genes
     passed_heterozygous_hla_alleles_ch = MAKE_HLA_ALLELE_BAMS.out.passed_heterozygous_hla_alleles
     hla_allele_bams_ch = MAKE_HLA_ALLELE_BAMS.out.hla_allele_bams
     hla_bam_read_count_ch = MAKE_HLA_ALLELE_BAMS.out.hla_bam_read_count
     mosdepth_ch = MOSDEPTH.out.mosdepth_bed
-    // versions = versions.mix(NOVOALIGN.out.versions.first())              // channel: [ versions.yml ]
-    // versions = versions.mix(MAKE_HLA_ALLELE_BAMS.out.versions.first())    // channel: [ versions.yml ]
-    // versions = versions.mix(MOSDEPTH.out.versions.first())    // channel: [ versions.yml ]
+    versions = versions.mix(NOVOALIGN.out.versions.first())              // channel: [ versions.yml ]
+    versions = versions.mix(MAKE_HLA_ALLELE_BAMS.out.versions.first())    // channel: [ versions.yml ]
+    versions = versions.mix(MOSDEPTH.out.versions.first())    // channel: [ versions.yml ]
 
 }

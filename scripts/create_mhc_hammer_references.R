@@ -63,10 +63,12 @@ genome_strand_specific_fasta <- NULL
 transcriptome_fasta <- NULL
 gtf <- data.table()
 exon_intron_dt <- data.table()
-alleles_with_unmatching_nuc_seq <- c()
+alleles_with_unmatching_cds_exon_seq <- c()
 alleles_with_unmatching_gen_seq <- c() 
+alleles_with_unmatching_cds_seq <- c()
 
-for(gene_to_run in c("HLA-A", "HLA-B", "HLA-C")){
+for(gene_to_run in c("HLA-A", "HLA-B", "HLA-C", "HLA-E", "HLA-F", "HLA-G")){
+# for(gene_to_run in unique(all_allele_list$gene)){
   
   cat("Processing ", gene_to_run, "\n")
   
@@ -149,12 +151,20 @@ for(gene_to_run in c("HLA-A", "HLA-B", "HLA-C")){
       }
       
       # check whether the cds and the exon sequence is the same
-      allele_nuc_seq_from_gtf <- toupper(paste0(hla_dat_allele_features[allele_name == allele & type == "exon"]$feature_seq, collapse = ""))
+      # if different we use the exon sequence
+      allele_exon_seq_from_hla_dat <- toupper(paste0(hla_dat_allele_features[allele_name == allele & type == "exon"]$feature_seq, collapse = ""))
+      allele_cds_seq_from_hla_dat <- toupper(paste0(hla_dat_allele_features[allele_name == allele & type == "CDS"]$feature_seq, collapse = ""))
       
-      if(allele_nuc_seq_from_gtf != paste0(allele_nuc_seq, collapse = "")){
-        cat("The CDS sequence and the exon sequence aren't the same for allele ", allele, ", will use the exon sequence for the transcriptome reference\n")
-        alleles_with_unmatching_nuc_seq <- c(alleles_with_unmatching_nuc_seq, allele)
-        allele_nuc_seq <- allele_nuc_seq_from_gtf
+      if(allele_cds_seq_from_hla_dat != paste0(allele_nuc_seq, collapse = "")){
+        # cat("The CDS sequence and the exon sequence aren't the same for allele ", allele, ", will use the exon sequence for the transcriptome reference\n")
+        alleles_with_unmatching_cds_seq <- c(alleles_with_unmatching_cds_seq, allele)
+      }
+      
+      if(allele_exon_seq_from_hla_dat != paste0(allele_nuc_seq, collapse = "")){
+        # cat("The CDS sequence and the exon sequence aren't the same for allele ", allele, ", will use the exon sequence for the transcriptome reference\n")
+        alleles_with_unmatching_cds_exon_seq <- c(alleles_with_unmatching_cds_exon_seq, allele)
+        # if different we use the exon sequence
+        allele_nuc_seq <- allele_exon_seq_from_hla_dat
       }
       
       allele_nuc_fasta = as.SeqFastadna(allele_nuc_seq)
@@ -228,7 +238,9 @@ write.fasta(transcriptome_fasta,
             names = names(transcriptome_fasta), nbchar = 80)
 
 # save alleles_with_unmatching_nuc_seq
-fwrite(data.table(allele = alleles_with_unmatching_nuc_seq),
-       file = paste0(outdir, "/transcriptome/alleles_with_unmapping_nuc_seq.csv"))
+fwrite(data.table(allele = alleles_with_unmatching_cds_exon_seq),
+       file = paste0(outdir, "/transcriptome/alleles_with_unmatching_cds_exon_seq.csv"))
+fwrite(data.table(allele = alleles_with_unmatching_cds_seq),
+       file = paste0(outdir, "/transcriptome/alleles_with_unmatching_cds_seq.csv"))
 fwrite(data.table(allele = alleles_with_unmatching_gen_seq),
-       file = paste0(outdir, "/transcriptome/alleles_with_unmapping_gen_seq.csv"))
+       file = paste0(outdir, "/transcriptome/alleles_with_unmatching_gen_seq.csv"))

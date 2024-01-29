@@ -1,7 +1,7 @@
 process NOVOALIGN {
     tag "${meta.sample_id}"
 
-    container "library://tpjones15/default/final_lohhla:latest"
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_single'
     label 'process_long'
@@ -54,7 +54,7 @@ process NOVOALIGN {
 process MAKE_HLA_ALLELE_BAMS {
     tag "${meta.sample_id}"
 
-    container "library://tpjones15/default/final_lohhla:latest"
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_single'
 
@@ -74,7 +74,7 @@ process MAKE_HLA_ALLELE_BAMS {
     
     path "versions.yml",                                                                  emit: versions
 
-    script: // scripts used are bundled with the pipeline, in McGranahanLab/mhc_hammer/bin/
+    script: 
     fasta = personalised_reference[0]
     """
     echo running script to produce allele-specific bams... 
@@ -155,7 +155,7 @@ process STAR_ALIGN_FIRST_PASS {
 
     tag "${meta.sample_id}"
 
-    container "library://tpjones15/mhchammer/alt_splicing:latest"
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_low'
     label 'process_long'
@@ -264,7 +264,7 @@ process STAR_ALIGN_FIRST_PASS {
 
 process GENERATE_ALL_SPLICE_TABLE {
 
-    container "library://tpjones15/mhchammer/alt_splicing:latest"
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_single'
     label 'error_retry'
@@ -285,7 +285,7 @@ process ALT_SPLICE_KMER {
 
     tag "${meta.sample_id}"
 
-    container "library://tpjones15/default/final_lohhla:latest"
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_single'
     label 'error_retry'
@@ -327,7 +327,7 @@ process STAR_ALIGN_SECOND_PASS {
 
     tag "${meta.sample_id}"
 
-    container "library://tpjones15/mhchammer/alt_splicing:latest"
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_low'
     label 'process_long'
@@ -399,7 +399,7 @@ process MOSDEPTH {
 
     tag "${meta.sample_id}"
 
-    container "library://tpjones15/mhchammer/alt_splicing:latest"
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_single'
 

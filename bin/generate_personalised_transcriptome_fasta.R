@@ -45,5 +45,3 @@ patient.hlaFasta_path <- paste0(patient_id, '_mhc_transcriptome_reference.fa')
 write.fasta(patient.HLA_fasta,
             file = patient.hlaFasta_path,
             names = names(patient.HLA_fasta))
-
-print("Done!")

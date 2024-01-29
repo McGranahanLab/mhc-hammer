@@ -1,7 +1,7 @@
 process DETECT_CN_AND_AIB {
     tag "${meta.sample_id}"
 
-    container "library://tpjones15/default/final_lohhla:latest"
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_single'
 
@@ -30,7 +30,8 @@ process DETECT_CN_AND_AIB {
 
     patient_fasta = personalised_reference[0]
     hla_genes_to_run = passed_heterozygous_hla_genes.collect().join(" ")
-    """    
+    """  
+    echo "rerun"  
     for gene in ${hla_genes_to_run}
     do
         echo Doing \${gene}
@@ -253,18 +254,22 @@ process DETECT_CN_AND_AIB {
 
         Rscript --vanilla ${baseDir}/bin/count_reads_once.R \
         --snp_reads_overlap_bed \$allele1_tumour_snp_reads_overlap_7cols \
+        --snp_path \$allele1_snp_path \
         --out_csv \$allele1_tumour_reads_count_once_coverage
 
         Rscript --vanilla ${baseDir}/bin/count_reads_once.R \
         --snp_reads_overlap_bed \$allele2_tumour_snp_reads_overlap_7cols \
+        --snp_path \$allele2_snp_path \
         --out_csv \$allele2_tumour_reads_count_once_coverage
 
         Rscript --vanilla ${baseDir}/bin/count_reads_once.R \
         --snp_reads_overlap_bed \$allele1_gl_snp_reads_overlap_7cols \
+        --snp_path \$allele1_snp_path \
         --out_csv \$allele1_gl_reads_count_once_coverage
 
         Rscript --vanilla ${baseDir}/bin/count_reads_once.R \
         --snp_reads_overlap_bed \$allele2_gl_snp_reads_overlap_7cols \
+        --snp_path \$allele2_snp_path \
         --out_csv \$allele2_gl_reads_count_once_coverage
 
         echo Step 11: Get AIB
@@ -318,7 +323,7 @@ process DETECT_CN_AND_AIB {
 process DETECT_MUTS {
     tag "${meta.sample_id}"
 
-    container 'library://tpjones15/mhchammer/call_mutations:latest'
+    container "library://tpjones15/mhchammer/mhchammer_detect_muts:latest"
 
     label 'process_single'
  
@@ -411,7 +416,7 @@ process DETECT_MUTS {
 process PARSE_MUTATIONS {
     tag "${patient_id}"
 
-    container 'library://tpjones15/mhchammer/call_mutations:latest'
+    container "library://tpjones15/mhchammer/mhchammer_detect_muts:latest"
 
     label 'process_single'
 

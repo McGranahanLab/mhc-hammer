@@ -38,5 +38,5 @@ From: condaforge/mambaforge:latest
     mv hlahd.${HLAHD_VERSION} hlahd
     cd hlahd
     sh install.sh
-    sed -i 's,wget https://media.githubusercontent.com/media/ANHIG/IMGTHLA/Latest/hla.dat,wget https://media.githubusercontent.com/media/ANHIG/IMGTHLA/v3.38.0-alpha/hla.dat,' update.dictionary.sh ###### Update to specific hla.dat file or comment out if using the most up-to-date IMGT version
+    sed -i 's,wget https://media.githubusercontent.com/media/ANHIG/IMGTHLA/v3.38.0-alpha/hla.dat,wget https://media.githubusercontent.com/media/ANHIG/IMGTHLA/v3.55.0-alpha/hla.dat,' update.dictionary.sh
     sh update.dictionary.sh

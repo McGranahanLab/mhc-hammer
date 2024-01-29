@@ -15,11 +15,9 @@ parser$add_argument('--csv_tables_path',
 args <- parser$parse_args()
 inventory_path <- args$inventory_path
 csv_tables_path <- args$csv_tables_path
-# allele_overview_path <- args$allele_overview_path
 
 cat("inventory_path=", inventory_path, "\n")
 cat("csv_tables_path=", csv_tables_path, "\n")
-# cat("allele_overview_path=", allele_overview_path, "\n")
 
 #### get output tables ####
 
@@ -47,8 +45,8 @@ for(line_idx in 1:nrow(novel_sjs_paths)){
     x[,sample_name := gsub("_tumour_normal_splice_junctions.csv$", "", basename(novel_sjs_paths[line_idx]$novel_sj_path))]
     x[,matched_normal_sample_name := novel_sjs_paths[line_idx]$normal_sample_name]
     setnames(x, 
-             old = c("tumour_n_unique_reads", "tumour_n_multtimap_reads", "tumour_max_overhang", "tumour_intron_n_reads", "tumour_canonical_sj_read_count", "tumour_total_read_count", "tumour_ratio"),
-             new = c("n_unique_reads", "n_multtimap_reads", "max_overhang", "intron_n_reads", "canonical_sj_read_count", "total_read_count", "ratio"))
+             old = c("tumour_n_unique_reads", "tumour_n_multtimap_reads", "tumour_max_overhang", "tumour_intron_n_reads", "tumour_canonical_sj_read_count", "tumour_total_read_count", "tumour_novel_transcript_proportion"),
+             new = c("n_unique_reads", "n_multtimap_reads", "max_overhang", "intron_n_reads", "canonical_sj_read_count", "total_read_count", "novel_transcript_proportion"))
   }else{
     x[,sample_name := gsub("_novel_splice_junctions.csv$", "", basename(novel_sjs_paths[line_idx]$novel_sj_path))]
   }
@@ -108,8 +106,8 @@ cohort_novel_splicing_tables <- cohort_novel_splicing_tables[,c("sample_name", "
                                                                 "canonical_sj_read_count", 
                                                                 "normal_canonical_sj_read_count",
                                                                 "total_read_count", "normal_total_read_count",
-                                                                "ratio", "normal_ratio" ,
-                                                                "ratio_change", "ratio_changev2",
+                                                                "novel_transcript_proportion", "normal_novel_transcript_proportion" ,
+                                                                "novel_transcript_proportion_change", "novel_transcript_proportion_changev2",
                                                                 "fisher_pvalue", "fisher_odds_ratio",
                                                                 "fisher_ci_lower", "fisher_ci_upper", 
                                                                 "sj_type", "exon_intron_name", 
@@ -139,17 +137,23 @@ if(nrow(cohort_known_splicing_tables[is.na(patient)]) > 0){
 # allele_table <- unique(allele_table[,c("sample_name", "allele", "rna_fail", "wes_fail")])
 # cohort_novel_splicing_tables <- merge(cohort_novel_splicing_tables, allele_table, by = c("sample_name", "allele"), all.x = TRUE)
 
-# add in the purity and the purity scaled ratio
+# add in the purity and the purity scaled novel_transcript_proportion
 tumour_wes_inventory <- inventory[sequencing_type == "wxs" & sample_type == "tumour",c("sample_name", "purity")]
 if(nrow(tumour_wes_inventory) > 0){
   cohort_novel_splicing_tables <- merge(cohort_novel_splicing_tables, tumour_wes_inventory, 
                                         by = "sample_name", all.x = TRUE)
   cohort_known_splicing_tables <- merge(cohort_known_splicing_tables, tumour_wes_inventory, 
                                         by = "sample_name", all.x = TRUE)
-  cohort_novel_splicing_tables[,purity_scaled_ratio := ratio/purity]
-  cohort_novel_splicing_tables[purity_scaled_ratio > 1, purity_scaled_ratio := 1]
+  cohort_novel_splicing_tables[,purity_scaled_novel_transcript_proportion := novel_transcript_proportion/purity]
+  cohort_novel_splicing_tables[purity_scaled_novel_transcript_proportion > 1, purity_scaled_novel_transcript_proportion := 1]
   
 }
+
+setcolorder(cohort_novel_splicing_tables,
+            c("patient", "sample_name", "matched_normal_sample_name", "gene", "allele", "short_allele", "start", "end", "n_unique_reads", "normal_n_unique_reads", "canonical_sj_read_count", "normal_canonical_sj_read_count", "total_read_count", "normal_total_read_count", "novel_transcript_proportion", "normal_novel_transcript_proportion", "novel_transcript_proportion_change", "novel_transcript_proportion_changev2", "fisher_pvalue", "fisher_odds_ratio", "fisher_ci_lower", "fisher_ci_upper", "sj_type", "exon_intron_name", "premature_stop", "framshift", "sj_consequence", "sample_type", "purity", "purity_scaled_novel_transcript_proportion"))
+
+setcolorder(cohort_known_splicing_tables,
+            c("patient", "sample_name", "gene", "allele", "short_allele", "start", "end", "n_unique_reads", "known_feature_name", "sample_type", "purity"))
 
 fwrite(cohort_novel_splicing_tables, "novel_splicing_events.csv")
 fwrite(cohort_known_splicing_tables, "known_splicing_events.csv")

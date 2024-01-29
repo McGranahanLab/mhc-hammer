@@ -3,7 +3,7 @@ process DETECT_ALT_SPLICING {
 
     tag "${meta.sample_id}"
 
-    container "library://tpjones15/default/final_lohhla:latest"
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_single'
 
@@ -19,9 +19,8 @@ process DETECT_ALT_SPLICING {
     path ("*_known_splice_junctions.csv"), emit: known_splice_junctions_tables
     path ("versions.yml"), emit: versions
 
-    script: // scripts used are bundled with the pipeline, in McGranahanLab/MHChammer/bin/
+    script: 
     """
-    echo "rerun"
     echo ${sample_splice_table}
     # Run Rscript to detect novel splice junctions
     Rscript ${projectDir}/bin/annotate_star_splice_junctions.R \
@@ -53,7 +52,7 @@ process TUMOUR_NORMAL_ALT_SPLICING_ENRICHMENT {
 
     tag "${meta.sample_id}"
 
-    container "library://tpjones15/default/final_lohhla:latest"
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_single'
 
@@ -64,7 +63,7 @@ process TUMOUR_NORMAL_ALT_SPLICING_ENRICHMENT {
     path ("*_tumour_normal_splice_junctions.csv"), emit: tumour_normal_splice_junctions_tables
     path ("versions.yml"), emit: versions
 
-    script: // scripts used are bundled with the pipeline, in McGranahanLab/MHChammer/bin/
+    script: 
     """
 
     # Run Rscript to detect novel splice junctions

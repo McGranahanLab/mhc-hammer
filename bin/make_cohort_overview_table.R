@@ -24,6 +24,7 @@ parser$add_argument('--min_expected_depth',
                     help="Minimum number of snps",
                     required=TRUE)
 
+
 parser$add_argument('--min_frac_mapping_uniquely',
                     help="",
                     required=TRUE)
@@ -47,10 +48,10 @@ min_frac_mapping_uniquely <- args$min_frac_mapping_uniquely
 max_frac_mapping_multi_gene <- args$max_frac_mapping_multi_gene
 dna_snp_min_depth <- args$dna_snp_min_depth
 
-cat("inventory_path=", inventory_path, "\n")
-cat("csv_tables_path=", csv_tables_path, "\n")
-cat("hlahd_germline_samples_path=", hlahd_germline_samples_path, "\n")
-cat("dna_snp_min_depth=", dna_snp_min_depth, "\n")
+cat('inventory_path="', inventory_path, '"\n')
+cat('csv_tables_path="', csv_tables_path, '"\n')
+cat('hlahd_germline_samples_path="', hlahd_germline_samples_path, '"\n')
+cat('dna_snp_min_depth="', dna_snp_min_depth, '"\n')
 
 #### get output tables ####
 
@@ -69,16 +70,16 @@ output_tables[grepl("transcriptome_allele_table.csv$", csv_path), table_type := 
 output_tables[grepl("_rnaseq_novoalign.hla_bam_read_count.csv$", csv_path), table_type := "rna_bam_read_count"]
 
 # library_size
-output_tables[csv_path == "cohort_library_size.csv", table_type := "library_size"]
+output_tables[grepl("wxs.library_size.txt", csv_path), table_type := "wxs_library_size"]
+output_tables[grepl("rnaseq.library_size.txt", csv_path), table_type := "rna_library_size"]
 
 #### Make the initial table with the samples with rna and dna ####
 inventory <- fread(inventory_path)
-setnames(inventory, "normal_sample_id", "normal_sample_name")
 
 wes_overview_dt <- unique(inventory[sequencing_type == "wxs" & sample_type == "tumour",
                                     c("patient", "sample_name", "purity", "ploidy", "normal_sample_name", "sample_type")])
-setnames(wes_overview_dt, "normal_sample_name", "wes_germline_id")
-wes_overview_dt[, sample_has_wes := TRUE]
+setnames(wes_overview_dt, "normal_sample_name", "wxs_germline_id")
+wes_overview_dt[, sample_has_wxs := TRUE]
 
 rna_overview_dt <- unique(inventory[sequencing_type == "rnaseq",
                                     c("patient", "sample_name", "normal_sample_name", "sample_type")])
@@ -92,11 +93,9 @@ overview_table[is.na(sample_type.x), sample_type.x := sample_type.y]
 overview_table[,sample_type.y := NULL]
 setnames(overview_table, "sample_type.x", "sample_type")
 
-overview_table[is.na(sample_has_wes), sample_has_wes := FALSE]
+overview_table[is.na(sample_has_wxs), sample_has_wxs := FALSE]
 overview_table[is.na(sample_has_rna), sample_has_rna := FALSE]
 
-# remove tumour samples that only have rna
-overview_table <- overview_table[!(sample_type == "tumour" & sample_has_wes == FALSE)]
 overview_table[,rnaseq_normal_sample_name := as.character(rnaseq_normal_sample_name)]
 overview_table[is.na(rnaseq_normal_sample_name), rnaseq_normal_sample_name := ""]
 
@@ -116,60 +115,38 @@ if(nrow(overview_table[is.na(hlahd_germline_sample_name)]) > 0){
 }
 
 ##### add in the library size #####
-if(length(output_tables[table_type == "library_size"]$csv_path) != 1){
-  stop("why no library size?")
+
+wxs_library_size_tables <- output_tables[table_type == "wxs_library_size"]
+if(nrow(wxs_library_size_tables) > 0){
+  cohort_wxs_library_size <- data.table()
+  for(line_idx in 1:nrow(wxs_library_size_tables)){
+    x <- fread(wxs_library_size_tables[line_idx]$csv_path)
+    setnames(x, "wxs_library_size")
+    x[,sample_name := gsub("_wxs.library_size.txt", "", wxs_library_size_tables[line_idx]$csv_path)]
+    
+    cohort_wxs_library_size <- rbindlist(list(cohort_wxs_library_size, x))
+  }
+  
+  overview_table <- merge(overview_table, cohort_wxs_library_size, 
+                          by = "sample_name", all.x = TRUE)
+  
 }
 
-library_size <- fread(output_tables[table_type == "library_size"]$csv_path)
-
-# merge in the wes tumour
-wes_library_size <- library_size[sequencing_type == "wes",
-                                 c("sample_name", "read_count_with_unmapped",
-                                   "read_count_without_unmapped", "fraction_align")]
-setnames(wes_library_size, 
-         c("read_count_with_unmapped", "read_count_without_unmapped", "fraction_align"),
-         c("wes_tumour_read_count_with_unmapped", "wes_tumour_read_count_without_unmapped", "wes_tumour_fraction_align"))
-
-overview_table <- merge(overview_table, wes_library_size, 
-                        by = c("sample_name"), all.x = TRUE)
-
-# merge the wes germline
-setnames(wes_library_size, 
-         c("wes_tumour_read_count_with_unmapped", "wes_tumour_read_count_without_unmapped", "wes_tumour_fraction_align"),
-         c("wes_germline_read_count_with_unmapped", "wes_germline_read_count_without_unmapped", "wes_germline_fraction_align"))
-
-overview_table <- merge(overview_table, wes_library_size, 
-                        by.x = "wes_germline_id", 
-                        by.y = "sample_name", all.x = TRUE)
-
-# merge the wes hlahd sample name
-setnames(wes_library_size, 
-         c("wes_germline_read_count_with_unmapped", "wes_germline_read_count_without_unmapped", "wes_germline_fraction_align"),
-         c("wes_hlahd_germline_read_count_with_unmapped", "wes_hlahd_germline_read_count_without_unmapped", "wes_hlahd_germline_fraction_align"))
-
-overview_table <- merge(overview_table, wes_library_size, 
-                        by.x = "hlahd_germline_sample_name", 
-                        by.y = "sample_name", all.x = TRUE)
-
-# merge in the rnaseq sample
-rna_library_size <- library_size[sequencing_type == "rnaseq",
-                                 c("sample_name", "read_count_with_unmapped",
-                                   "read_count_without_unmapped", "fraction_align")]
-setnames(rna_library_size, 
-         c("read_count_with_unmapped", "read_count_without_unmapped", "fraction_align"),
-         c("rna_read_count_with_unmapped", "rna_read_count_without_unmapped", "rna_readcount_fraction_align"))
-
-overview_table <- merge(overview_table, rna_library_size, 
-                        by = c("sample_name"), all.x = TRUE)
-
-# merge in matched normal 
-setnames(rna_library_size, 
-         c("rna_read_count_with_unmapped", "rna_read_count_without_unmapped", "rna_readcount_fraction_align"),
-         c("rna_normal_read_count_with_unmapped", "rna_normal_read_count_without_unmapped", "rna_normal_readcount_fraction_align"))
-
-overview_table <- merge(overview_table, rna_library_size, 
-                        by.x = c("rnaseq_normal_sample_name"), 
-                        by.y = "sample_name", all.x = TRUE)
+rna_library_size_tables <- output_tables[table_type == "rna_library_size"]
+if(nrow(rna_library_size_tables) > 0){
+  cohort_rna_library_size <- data.table()
+  for(line_idx in 1:nrow(rna_library_size_tables)){
+    x <- fread(rna_library_size_tables[line_idx]$csv_path)
+    setnames(x, "rna_library_size")
+    x[,sample_name := gsub("_rnaseq.library_size.txt", "", rna_library_size_tables[line_idx]$csv_path)]
+    
+    cohort_rna_library_size <- rbindlist(list(cohort_rna_library_size, x))
+  }
+  
+  overview_table <- merge(overview_table, cohort_rna_library_size, 
+                          by = "sample_name", all.x = TRUE)
+  
+}
 
 #### get the genome hla alleles and number of SNPs ####
 genome_hlahd_tables <- output_tables[table_type == "genome_allele_table"]
@@ -525,34 +502,34 @@ overview_table[homozygous == TRUE, fail_homozygous := TRUE]
 overview_table[homozygous == FALSE, fail_homozygous := FALSE]
 
 # fail if too few dna snps
-overview_table[sample_has_wes == TRUE & 
-                 (cn_n_snps < min_n_snps | logr_aib_n_snps < min_n_snps | fail_homozygous == TRUE), fail_n_wes_snps := TRUE]
-overview_table[sample_has_wes == TRUE & 
-                 (cn_n_snps >= min_n_snps & logr_aib_n_snps >= min_n_snps), fail_n_wes_snps := FALSE]
+overview_table[sample_has_wxs == TRUE & 
+                 (cn_n_snps < min_n_snps | logr_aib_n_snps < min_n_snps | fail_homozygous == TRUE), fail_n_wxs_snps := TRUE]
+overview_table[sample_has_wxs == TRUE & 
+                 (cn_n_snps >= min_n_snps & logr_aib_n_snps >= min_n_snps), fail_n_wxs_snps := FALSE]
 
-# overview_table[sample_has_wes == TRUE,.N,by = fail_n_wes_snps]
+# overview_table[sample_has_wxs == TRUE,.N,by = fail_n_wxs_snps]
 
 # fail if low expected depth
-overview_table[sample_has_wes == TRUE & 
+overview_table[sample_has_wxs == TRUE & 
                  (allele1_expected_depth < min_expected_depth | allele2_expected_depth < min_expected_depth | fail_homozygous == TRUE | cn_n_snps == 0), 
                fail_expected_depth := TRUE]
-overview_table[sample_has_wes == TRUE & (allele1_expected_depth >= min_expected_depth & allele2_expected_depth >= min_expected_depth), 
+overview_table[sample_has_wxs == TRUE & (allele1_expected_depth >= min_expected_depth & allele2_expected_depth >= min_expected_depth), 
                fail_expected_depth := FALSE]
 
-overview_table[sample_has_wes == TRUE,.N,by = fail_expected_depth]
+overview_table[sample_has_wxs == TRUE,.N,by = fail_expected_depth]
 
 # cn range
-overview_table[sample_has_wes == TRUE, allele1_cn_range := cn1_binned_upper - cn1_binned_lower]
-overview_table[sample_has_wes == TRUE, allele2_cn_range := cn2_binned_upper - cn2_binned_lower]
+overview_table[sample_has_wxs == TRUE, allele1_cn_range := cn1_binned_upper - cn1_binned_lower]
+overview_table[sample_has_wxs == TRUE, allele2_cn_range := cn2_binned_upper - cn2_binned_lower]
 
-overview_table[sample_has_wes == TRUE & (allele1_cn_range > max_cn_range | allele2_cn_range > max_cn_range),
+overview_table[sample_has_wxs == TRUE & (allele1_cn_range > max_cn_range | allele2_cn_range > max_cn_range),
                fail_cn_range := TRUE]
-overview_table[sample_has_wes == TRUE & (is.na(allele1_cn_range) | is.na(allele2_cn_range)), 
+overview_table[sample_has_wxs == TRUE & (is.na(allele1_cn_range) | is.na(allele2_cn_range)), 
                fail_cn_range := TRUE]
-overview_table[sample_has_wes == TRUE & allele1_cn_range <= max_cn_range & allele2_cn_range <= max_cn_range,
+overview_table[sample_has_wxs == TRUE & allele1_cn_range <= max_cn_range & allele2_cn_range <= max_cn_range,
                fail_cn_range := FALSE]
 
-overview_table[sample_has_wes == TRUE,.N,by = fail_cn_range]
+overview_table[sample_has_wxs == TRUE,.N,by = fail_cn_range]
 
 # fail if too few rna aib snps
 overview_table[sample_has_rna == TRUE & n_transcriptome_snps < min_n_snps, fail_rna_n_snps := TRUE]
@@ -576,16 +553,16 @@ overview_table[sample_has_rna == TRUE & frac_mapping_uniquely <= min_frac_mappin
 overview_table[,.N,by = c("fail_unique_allele_mapping", "sample_has_rna")]
 
 # pass/fail the wes
-overview_table[sample_has_wes == TRUE &
+overview_table[sample_has_wxs == TRUE &
                  (fail_homozygous == TRUE | 
-                    fail_n_wes_snps == TRUE |
+                    fail_n_wxs_snps == TRUE |
                     fail_expected_depth == TRUE |
-                    fail_cn_range == TRUE), wes_fail := TRUE]
-overview_table[sample_has_wes == TRUE &
+                    fail_cn_range == TRUE), wxs_fail := TRUE]
+overview_table[sample_has_wxs == TRUE &
                  (fail_homozygous == FALSE & 
-                    fail_n_wes_snps == FALSE &
+                    fail_n_wxs_snps == FALSE &
                     fail_expected_depth == FALSE & 
-                    fail_cn_range == FALSE), wes_fail := FALSE]
+                    fail_cn_range == FALSE), wxs_fail := FALSE]
 
 # pass/fail the rnaseq
 overview_table[sample_has_rna == TRUE &
@@ -607,10 +584,10 @@ if(nrow(overview_table[rnaseq_normal_sample_name != ""]) > 0 & "rna_fail" %in% c
                           by.x = c("rnaseq_normal_sample_name", "gene"),
                           by.y = c("sample_name", "gene"), all.x = TRUE)
   
-  overview_table[sample_has_rna == TRUE & rnaseq_normal_sample_name != "" &
-                   (rna_normal_fail == TRUE | rna_fail == TRUE) , rna_matched_normal_fail := TRUE]
-  overview_table[sample_has_rna == TRUE & rnaseq_normal_sample_name != "" &
-                   (rna_normal_fail == FALSE & rna_fail == FALSE) , rna_matched_normal_fail := FALSE]
+  # overview_table[sample_has_rna == TRUE & rnaseq_normal_sample_name != "" &
+  #                  (rna_normal_fail == TRUE | rna_fail == TRUE) , rna_matched_normal_fail := TRUE]
+  # overview_table[sample_has_rna == TRUE & rnaseq_normal_sample_name != "" &
+  #                  (rna_normal_fail == FALSE & rna_fail == FALSE) , rna_matched_normal_fail := FALSE]
 }else{
   overview_table[,rna_normal_fail := NA]
   overview_table[,rna_repression_fail := NA]
@@ -618,8 +595,8 @@ if(nrow(overview_table[rnaseq_normal_sample_name != ""]) > 0 & "rna_fail" %in% c
 
 # add in the matched normal rna rpkm
 normal_rpkm <- overview_table[rna_fail == FALSE & sample_type == "normal", 
-                     c("sample_name", "gene",
-                       "allele1_rpkm", "allele2_rpkm")]
+                              c("sample_name", "gene",
+                                "allele1_rpkm", "allele2_rpkm")]
 setnames(normal_rpkm, 
          c("allele1_rpkm", "allele2_rpkm"), 
          c("allele1_matched_normal_rpkm", "allele2_matched_normal_rpkm"))
@@ -643,26 +620,22 @@ overview_table[, short_allele1 := gsub("(HLA-.*?:.*?):.*", "\\1", allele1)]
 overview_table[, short_allele2 := gsub("(HLA-.*?:.*?):.*", "\\1", allele2)]
 
 # add in dna aib
-overview_table[wes_fail == FALSE & logr_aib_paired_wilcoxon_test < 0.01, dna_aib := TRUE]
-overview_table[wes_fail == FALSE & logr_aib_paired_wilcoxon_test >= 0.01, dna_aib := FALSE]
-# overview_table[,.N,by = c("wes_fail", "dna_aib", "sample_type")]
+overview_table[wxs_fail == FALSE & logr_aib_paired_wilcoxon_test < 0.01, dna_aib := TRUE]
+overview_table[wxs_fail == FALSE & logr_aib_paired_wilcoxon_test >= 0.01, dna_aib := FALSE]
+# overview_table[,.N,by = c("wxs_fail", "dna_aib", "sample_type")]
 
 # add in loh
-overview_table[wes_fail == FALSE & dna_aib == TRUE & cn1_binned < 0.5, allele1_loh := TRUE]
-overview_table[wes_fail == FALSE & (dna_aib == FALSE | cn1_binned >= 0.5), allele1_loh := FALSE]
+overview_table[wxs_fail == FALSE & dna_aib == TRUE & cn1_binned < 0.5, allele1_loh := TRUE]
+overview_table[wxs_fail == FALSE & (dna_aib == FALSE | cn1_binned >= 0.5), allele1_loh := FALSE]
 
-overview_table[wes_fail == FALSE & dna_aib == TRUE & cn2_binned < 0.5, allele2_loh := TRUE]
-overview_table[wes_fail == FALSE & (dna_aib == FALSE | cn2_binned >= 0.5), allele2_loh := FALSE]
+overview_table[wxs_fail == FALSE & dna_aib == TRUE & cn2_binned < 0.5, allele2_loh := TRUE]
+overview_table[wxs_fail == FALSE & (dna_aib == FALSE | cn2_binned >= 0.5), allele2_loh := FALSE]
 
 overview_table[allele1_loh == TRUE | allele2_loh == TRUE, loh := TRUE]
 overview_table[allele1_loh == FALSE & allele2_loh == FALSE, loh := FALSE]
 
-overview_table[wes_fail == FALSE & cn1_binned < cn2_binned, minor_allele := allele1]
-overview_table[wes_fail == FALSE & cn2_binned < cn1_binned, minor_allele := allele2]
-
-# overview_table[,.N,by = c("wes_fail", "allele1_loh", "sample_type")]
-# overview_table[,.N,by = c("wes_fail", "allele2_loh", "sample_type")]
-# overview_table[,.N,by = c("wes_fail", "loh", "sample_type")]
+overview_table[wxs_fail == FALSE & cn1_binned < cn2_binned, minor_allele := allele1]
+overview_table[wxs_fail == FALSE & cn2_binned < cn1_binned, minor_allele := allele2]
 
 # add in rna aib
 overview_table[rna_fail == FALSE & rna_aib_paired_wilcoxon_test < 0.01, rna_aib := TRUE]
@@ -712,47 +685,48 @@ overview_table[rna_fail == FALSE & rna_normal_fail == FALSE &
 # overview_table[,.N,by = c("rna_fail", "rna_normal_fail", "allele1_over_expressed")]
 # overview_table[,.N,by = c("rna_fail", "rna_normal_fail", "allele2_over_expressed")]
 
-overview_table[, wes_min_snp_depth := dna_snp_min_depth]
-
 # order the columns
-col_order <- c("patient", "sample_name", "sample_type", "gene", "allele1", "allele2",
-               "short_allele1", "short_allele2",
-               "homozygous", "purity", "ploidy",
-               "sample_has_wes", "sample_has_rna", "rna_fail", "wes_fail",
-               "wes_germline_id", "rnaseq_normal_sample_name",
-               "n_genome_snps", "n_transcriptome_snps", 
-               "allele1_dna_n_reads_before_filtering", "allele1_dna_n_reads_after_filtering", "allele2_dna_n_reads_before_filtering", "allele2_dna_n_reads_after_filtering",
-               "allele1_rna_n_reads_before_filtering", "allele1_rna_n_reads_after_filtering", "allele2_rna_n_reads_before_filtering", "allele2_rna_n_reads_after_filtering", 
-               "cn1_binned", "cn1_binned_lower", "cn1_binned_upper", "allele1_cn_range",
-               "cn2_binned", "cn2_binned_lower", "cn2_binned_upper", "allele2_cn_range",
-               "cn_n_bins", "cn_n_snps", "wes_min_snp_depth",
-               "allele1_expected_depth", "allele2_expected_depth", 
-               "logr_aib_paired_t_test", "logr_aib_paired_wilcoxon_test", "logr_aib_n_snps", 
-               "dna_aib", "loh", "minor_allele",
-               "gene_rpkm", "allele1_rpkm", "allele2_rpkm", 
-               "rna_aib_paired_t_test", "rna_aib_paired_wilcoxon_test",
-               "rna_aib",
-               "frac_mapping_multi_gene", "frac_mapping_uniquely", 
-               "allele1_repression_paired_t_test", "allele1_repression_paired_wilcoxon_test", 
-               "allele1_repression_median_tumour_dp", "allele1_repression_median_normal_dp", 
-               "allele2_repression_paired_t_test", "allele2_repression_paired_wilcoxon_test", 
-               "allele2_repression_median_tumour_dp", "allele2_repression_median_normal_dp", 
-               "allele1_repressed", "allele1_over_expressed", "allele2_repressed", "allele2_over_expressed",
-               "fail_homozygous", "fail_n_wes_snps", "fail_expected_depth", "fail_cn_range",
-               "fail_rna_n_snps", "fail_multi_gene_mapping", "fail_unique_allele_mapping")
+col_order <- c("patient","sample_name","sample_type","gene","allele1","allele2",
+               "short_allele1","short_allele2","homozygous","purity","ploidy",
+               "sample_has_wxs","sample_has_rna","wxs_fail","rna_fail","rna_normal_fail",
+               "wxs_germline_id","hlahd_germline_sample_name","rnaseq_normal_sample_name",
+               "n_genome_snps","wxs_library_size","allele1_dna_n_reads_before_filtering",
+               "allele1_dna_n_reads_after_filtering","allele2_dna_n_reads_before_filtering",
+               "allele2_dna_n_reads_after_filtering","cn1_binned","cn1_binned_lower",
+               "cn1_binned_upper","allele1_cn_range","cn2_binned","cn2_binned_lower",
+               "cn2_binned_upper","allele2_cn_range","cn_n_bins","cn_n_snps",
+               "allele1_expected_depth","allele2_expected_depth","logr_aib_paired_t_test",
+               "logr_aib_paired_wilcoxon_test","logr_aib_n_snps","dna_aib","loh",
+               "minor_allele","allele1_loh","allele2_loh","n_transcriptome_snps",
+               "rna_library_size","allele1_rna_n_reads_before_filtering",
+               "allele1_rna_n_reads_after_filtering","allele2_rna_n_reads_before_filtering",
+               "allele2_rna_n_reads_after_filtering",
+               "gene_rpkm","allele1_rpkm","allele2_rpkm",
+               "allele1_matched_normal_rpkm","allele2_matched_normal_rpkm",
+               "rna_aib_paired_t_test","rna_aib_paired_wilcoxon_test","rna_aib",
+               "frac_mapping_multi_gene","frac_mapping_uniquely",
+               "allele1_repression_paired_t_test",
+               "allele1_repression_paired_wilcoxon_test",
+               "allele1_repression_median_tumour_dp","allele1_repression_median_normal_dp",
+               "allele2_repression_paired_t_test","allele2_repression_paired_wilcoxon_test",
+               "allele2_repression_median_tumour_dp","allele2_repression_median_normal_dp",
+               "allele1_repressed","allele1_over_expressed",
+               "allele2_repressed","allele2_over_expressed",
+               "fail_homozygous","fail_n_wxs_snps","fail_expected_depth","fail_cn_range",
+               "fail_rna_n_snps","fail_multi_gene_mapping","fail_unique_allele_mapping")
 
 setcolorder(overview_table, col_order)
 
 # make allele level table
 allele1_dt <- overview_table[,c("patient", "sample_name", "sample_type", "gene", "allele1", "short_allele1",
                                 "homozygous", "purity", "ploidy",
-                                "sample_has_wes", "sample_has_rna", "rna_fail", "wes_fail", "rna_normal_fail",
-                                "wes_germline_id", "rnaseq_normal_sample_name",
+                                "sample_has_wxs", "sample_has_rna", "rna_fail", "wxs_fail", "rna_normal_fail",
+                                "wxs_germline_id", "rnaseq_normal_sample_name",
                                 "n_genome_snps", "n_transcriptome_snps", 
                                 "allele1_dna_n_reads_before_filtering", "allele1_dna_n_reads_after_filtering", 
                                 "allele1_rna_n_reads_before_filtering", "allele1_rna_n_reads_after_filtering", 
                                 "cn1_binned", "cn1_binned_lower", "cn1_binned_upper", "allele1_cn_range",
-                                "cn_n_bins", "cn_n_snps", "wes_min_snp_depth",
+                                "cn_n_bins", "cn_n_snps",
                                 "allele1_expected_depth", 
                                 "logr_aib_paired_t_test", "logr_aib_paired_wilcoxon_test", "logr_aib_n_snps", 
                                 "dna_aib", "allele1_loh", "minor_allele",
@@ -763,7 +737,7 @@ allele1_dt <- overview_table[,c("patient", "sample_name", "sample_type", "gene",
                                 "allele1_repression_paired_t_test", "allele1_repression_paired_wilcoxon_test", 
                                 "allele1_repression_median_tumour_dp", "allele1_repression_median_normal_dp", 
                                 "allele1_repressed", "allele1_over_expressed", 
-                                "fail_homozygous", "fail_n_wes_snps", "fail_expected_depth", "fail_cn_range",
+                                "fail_homozygous", "fail_n_wxs_snps", "fail_expected_depth", "fail_cn_range",
                                 "fail_rna_n_snps", "fail_multi_gene_mapping", "fail_unique_allele_mapping")]
 
 setnames(allele1_dt,
@@ -789,13 +763,13 @@ setnames(allele1_dt,
 allele2_dt <- overview_table[homozygous == FALSE,
                              c("patient", "sample_name", "sample_type", "gene", "allele2", "short_allele2",
                                "homozygous", "purity", "ploidy",
-                               "sample_has_wes", "sample_has_rna", "rna_fail", "wes_fail", "rna_normal_fail",
-                               "wes_germline_id", "rnaseq_normal_sample_name",
+                               "sample_has_wxs", "sample_has_rna", "rna_fail", "wxs_fail", "rna_normal_fail",
+                               "wxs_germline_id", "rnaseq_normal_sample_name",
                                "n_genome_snps", "n_transcriptome_snps", 
                                "allele2_dna_n_reads_before_filtering", "allele2_dna_n_reads_after_filtering", 
                                "allele2_rna_n_reads_before_filtering", "allele2_rna_n_reads_after_filtering", 
                                "cn2_binned", "cn2_binned_lower", "cn2_binned_upper", "allele2_cn_range",
-                               "cn_n_bins", "cn_n_snps", "wes_min_snp_depth",
+                               "cn_n_bins", "cn_n_snps", 
                                "allele2_expected_depth", 
                                "logr_aib_paired_t_test", "logr_aib_paired_wilcoxon_test", "logr_aib_n_snps", 
                                "dna_aib", "allele2_loh", "minor_allele",
@@ -806,7 +780,7 @@ allele2_dt <- overview_table[homozygous == FALSE,
                                "allele2_repression_paired_t_test", "allele2_repression_paired_wilcoxon_test", 
                                "allele2_repression_median_tumour_dp", "allele2_repression_median_normal_dp", 
                                "allele2_repressed", "allele2_over_expressed", 
-                               "fail_homozygous", "fail_n_wes_snps", "fail_expected_depth", "fail_cn_range",
+                               "fail_homozygous", "fail_n_wxs_snps", "fail_expected_depth", "fail_cn_range",
                                "fail_rna_n_snps", "fail_multi_gene_mapping", "fail_unique_allele_mapping")]
 
 setnames(allele2_dt,

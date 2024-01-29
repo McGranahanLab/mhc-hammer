@@ -94,5 +94,5 @@ cd hlahd
 # the following require wget, g++ and bowtie2 to be installed and in the PATH
 sh install.sh
 # update https://media.githubusercontent.com/media/ANHIG/IMGTHLA/v3.38.0-alpha/hla.dat to your preferred version
-$singularity_command sed -i 's,wget https://media.githubusercontent.com/media/ANHIG/IMGTHLA/Latest/hla.dat,wget https://media.githubusercontent.com/media/ANHIG/IMGTHLA/v3.38.0-alpha/hla.dat,' update.dictionary.sh
+$singularity_command sed -i 's,wget https://media.githubusercontent.com/media/ANHIG/IMGTHLA/v3.38.0-alpha/hla.dat,wget https://media.githubusercontent.com/media/ANHIG/IMGTHLA/v3.55.0-alpha/hla.dat,' update.dictionary.sh
 sh update.dictionary.sh

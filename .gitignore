@@ -1,0 +1,5 @@
+mhc_hammer_output
+.nextflow*
+.DS_Store
+singularity*
+

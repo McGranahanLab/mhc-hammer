@@ -1,7 +1,7 @@
 library(data.table)
 library(seqinr)
 library(argparse)
-
+# https://github.com/ANHIG/IMGTHLA/blob/Latest/Manual.md
 parser <- ArgumentParser()
 
 # Patient specific parameters
@@ -15,7 +15,6 @@ parser$add_argument('--save_dir', nargs=1,
 parser$add_argument('--functions_file', nargs=1,
                     help='Path to the file mhc_reference_functions.R',
                     required=TRUE)
-
 
 args <- parser$parse_args()
 path_to_hla_dat <- args$path_to_hla_dat
@@ -38,6 +37,7 @@ allele_index <- data.table(start_idx = id_lines,
 
 all_allele_features <- data.table()
 all_allele_info <- data.table()
+alleles_with_missing_data <- data.table()
 
 cat("Processing the hla.dat file\n")
 for(line_idx in 1:nrow(allele_index)){
@@ -73,7 +73,7 @@ for(line_idx in 1:nrow(allele_index)){
   gene_line <- grep("gene=", ft_lines, value = TRUE)
   gene <- paste0(gsub('.*gene=\\\"(.*)\\\"', "\\1", gene_line), collapse = ",")
   
-  if(!gene %in% c("HLA-A", "HLA-B", "HLA-C")){
+  if(!gene %in% c("HLA-A", "HLA-B", "HLA-C", "HLA-E", "HLA-F", "HLA-G")){
     next
   }
   
@@ -88,10 +88,6 @@ for(line_idx in 1:nrow(allele_index)){
   # check if it is partial
   partial <- any(grepl("FT[[:space:]].*/partial", ft_lines))
   
-  # get source
-  # source_line <- grep("source", ft_lines, value = TRUE)
-  # source <- gsub(".*source.*?([0-9]+.*)", "\\1", source_line)
-  
   # get mol type
   mol_type_line <- grep("mol_type", ft_lines, value = TRUE)
   mol_type <- gsub('.*mol_type=\"(.*)\"', "\\1", mol_type_line)
@@ -105,7 +101,7 @@ for(line_idx in 1:nrow(allele_index)){
   coords_dt <- get_coords(ft_lines)
   
   # get sequence length
-  seq_length <- gsub(".* Sequence ([0-9]+).*", "\\1", sq_line)
+  seq_length <- as.numeric(gsub(".* Sequence ([0-9]+).*", "\\1", sq_line))
   
   # get sequence
   sq_line_idx <- grep('^SQ', allele_entry)
@@ -152,11 +148,17 @@ for(line_idx in 1:nrow(allele_index)){
   }
   
   # add in the CDS sequence
-  if(!grepl("join", cds_line)){
-    stop("CDS line doesnt start with join?")
-  }
-  cds_coords <- gsub('join\\(', "", cds_line)
-  cds_coords <- gsub(')', "", cds_coords)
+  # if(!grepl("join", cds_line)){
+  #   alleles_with_missing_data <- rbindlist(list(alleles_with_missing_data,
+  #                                               data.table(allele_name = allele,
+  #                                                          type = "cds_no_join",
+  #                                                          line_idx = line_idx)))
+  #   next
+  # }
+  
+  cds_coords <- gsub(".*?([0-9].*[0-9]).*$", "\\1", cds_line)
+  # cds_coords <- gsub('join\\(', "", cds_line)
+  # cds_coords <- gsub(')', "", cds_coords)
   cds_dt <- data.table(start_end = strsplit(cds_coords, ",")[[1]])
   cds_dt[,start := gsub("\\.\\..*", "", start_end)]
   cds_dt[,end := gsub(".*\\.\\.", "", start_end)]
@@ -166,31 +168,34 @@ for(line_idx in 1:nrow(allele_index)){
   
   if( nrow(cds_dt[is.na(start)]) > 0 | nrow(cds_dt[is.na(end)]) > 0 ){
     
-    # cat("start or stop of CDS not numeric?\n")
-    coords_dt[,feature_seq := toupper(feature_seq)]
-    all_allele_features <- rbindlist(list(all_allele_features, coords_dt), use.names = TRUE)
-    
-  }else{
-    
-    # double check that the CDS isnt more than the length of the sequence
-    if(max(c(cds_dt$end, cds_dt$start)) > seq_length){
-      stop("CDS coordinates higher than sequence legnth")
-    }
-    
-    for(i in 1:nrow(cds_dt)){
-      cds_dt[i,feature_seq :=  substr(seq, start = cds_dt[i]$start, stop = cds_dt[i]$end)]
-    }
-    
-    cds_dt[,length := as.numeric(end) - as.numeric(start) + 1]
-    cds_dt[,allele_name := allele]
-    cds_dt[,gene := gene]
-    cds_dt[,type := "CDS"]
-    
-    coords_dt <- rbindlist(list(coords_dt, cds_dt), use.names = TRUE, fill = TRUE)
-    coords_dt[,feature_seq := toupper(feature_seq)]
-    all_allele_features <- rbindlist(list(all_allele_features, coords_dt), use.names = TRUE)
+    stop("start or stop of CDS not numeric?\n")
+    # coords_dt[,feature_seq := toupper(feature_seq)]
+    # all_allele_features <- rbindlist(list(all_allele_features, coords_dt), use.names = TRUE)
+    # alleles_with_missing_data <- rbindlist(list(alleles_with_missing_data,
+    #                                             data.table(allele_name = allele,
+    #                                                        type = "cds_start_stop_not_numeric",
+    #                                                        line_idx = line_idx)))
     
   }
+  
+  # double check that the CDS isnt more than the length of the sequence
+  if(max(c(cds_dt$end, cds_dt$start)) > seq_length){
+    stop("CDS coordinates higher than sequence legnth")
+  }
+  
+  for(i in 1:nrow(cds_dt)){
+    cds_dt[i,feature_seq :=  substr(seq, start = cds_dt[i]$start, stop = cds_dt[i]$end)]
+  }
+  
+  cds_dt[,length := as.numeric(end) - as.numeric(start) + 1]
+  cds_dt[,allele_name := allele]
+  cds_dt[,gene := gene]
+  cds_dt[,type := "CDS"]
+  
+  coords_dt <- rbindlist(list(coords_dt, cds_dt), use.names = TRUE, fill = TRUE)
+  coords_dt[,feature_seq := toupper(feature_seq)]
+  all_allele_features <- rbindlist(list(all_allele_features, coords_dt), use.names = TRUE)
+  
   
 }
 

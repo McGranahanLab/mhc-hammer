@@ -24,7 +24,6 @@ exon_bed_path <- paste0(patient_id, ".exons.bed")
 # get patient hla alleles
 hlahd_tab <- fread(patient_hla_alleles_path, header = FALSE)
 hlahd_tab <- hlahd_tab[V2 != "not typed" & V3 != "not typed"]
-hlahd_tab <- hlahd_tab[V1 %in% c("A", "B", "C")]
 patient_hla_alleles <- unique(c(hlahd_tab$V2, hlahd_tab$V3))
 
 # read in gtf 

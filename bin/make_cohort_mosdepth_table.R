@@ -71,6 +71,14 @@ for(line_idx in 1:nrow(wxs_novoalign_mosdepth_tables)){
   
 }
 
+setnames(cohort_rnaseq_star_mosdepth_tables, "stop", "end")
+setnames(cohort_rnaseq_novoalign_mosdepth_tables, "stop", "end")
+setnames(cohort_wxs_novoalign_mosdepth_tables, "stop", "end")
+
+setcolorder(cohort_rnaseq_star_mosdepth_tables, c("sample_name", "allele", "start", "end", "feature_name", "depth"))
+setcolorder(cohort_rnaseq_novoalign_mosdepth_tables, c("sample_name", "allele", "start", "end", "feature_name", "depth"))
+setcolorder(cohort_wxs_novoalign_mosdepth_tables, c("sample_name", "allele", "start", "end", "feature_name", "depth"))
+
 fwrite(cohort_rnaseq_star_mosdepth_tables, "mosdepth_rnaseq_star.csv")
 fwrite(cohort_rnaseq_novoalign_mosdepth_tables, "mosdepth_novoalign_rnaseq_star.csv")
 fwrite(cohort_wxs_novoalign_mosdepth_tables, "mosdepth_novoalign_wes_star.csv")

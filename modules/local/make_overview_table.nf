@@ -1,6 +1,6 @@
 process CREATE_MHC_HAMMER_TABLE {
 
-    container "library://tpjones15/default/final_lohhla:latest"
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_single'
 
@@ -49,7 +49,7 @@ process CREATE_MHC_HAMMER_TABLE {
 
 process CREATE_MOSDEPTH_COHORT_TABLE {
 
-    container "library://tpjones15/default/final_lohhla:latest"
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_single'
 
@@ -61,10 +61,6 @@ process CREATE_MOSDEPTH_COHORT_TABLE {
     output:
     path "mosdepth_*.csv", emit: overview_table
     path "versions.yml", emit: versions
-
-    // when:
-    // only run if there are tumour samples in the cohort
-    // total_tumour_count > 0 
 
     script:
     """
@@ -88,7 +84,7 @@ process CREATE_MOSDEPTH_COHORT_TABLE {
 
 process CREATE_LIBRARY_SIZE_TABLE {
 
-    container "library://tpjones15/default/final_lohhla:latest"
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_single'
 
@@ -128,7 +124,7 @@ process CREATE_LIBRARY_SIZE_TABLE {
 
 process CREATE_ALTERNATIVE_SPLICING_COHORT_TABLE {
 
-    container "library://tpjones15/default/final_lohhla:latest"
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_single'
 

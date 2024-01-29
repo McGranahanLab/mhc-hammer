@@ -2,3 +2,6 @@ gene	strand
 HLA-A	+
 HLA-B	-
 HLA-C	-
+HLA-E	+
+HLA-F	+
+HLA-G	+

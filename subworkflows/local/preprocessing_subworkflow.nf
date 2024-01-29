@@ -61,9 +61,9 @@ workflow PREPROCESSING {
     rna_fqs = GENERATE_HLA_FQS.out.fqs
                 .filter(filterByMetadataField("seq", "rnaseq"))
     
-    rna_flagstat = FLAGSTAT.out.flagstat
+    rna_library_size = FLAGSTAT.out.library_size
                 .filter(filterByMetadataField("seq", "rnaseq"))                 
-                .map{ meta, flagstat -> tuple(meta.sample_id, flagstat)}
+                .map{ meta, library_size -> tuple(meta.sample_id, library_size)}
 
     // DNA outputs                         
     // combine with normal_fqs so we only take one normal sample into hlahd
@@ -76,21 +76,20 @@ workflow PREPROCESSING {
     wxs_fqs = GENERATE_HLA_FQS.out.fqs
                 .filter(filterByMetadataField("seq", "wxs")) 
 
-    dna_flagstat = FLAGSTAT.out.flagstat
+    dna_library_size = FLAGSTAT.out.library_size
                 .filter(filterByMetadataField("seq", "wxs"))
-                .map{ meta, flagstat -> tuple(meta.sample_id, flagstat)} 
+                .map{ meta, library_size -> tuple(meta.sample_id, library_size)} 
 
     // Channels contain the mapped and unmapped rate to go into the final table
     unmapped_count_ch = FLAGSTAT.out.library_size_with_unmapped
     mapped_count_ch = FLAGSTAT.out.library_size_without_unmapped
 
-    
     versions
     
 }
 
 
-workflow SUBSET_BAM_PREPROCESSING {
+workflow PREPROCESSING_WITHOUT_BAM_SUBSETTING {
     take:
     input_bams
     gl_sample_count

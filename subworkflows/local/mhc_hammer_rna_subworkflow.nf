@@ -35,7 +35,7 @@ workflow RNA_ANALYSIS {
     tumour_hla_genes_ch = passed_heterozygous_hla_alleles_ch
             .filter(filterByMetadataField("sample_type", "tumour"))
             .map{ meta, passed_alleles -> 
-                tuple(meta.normal_sample_id, meta.sample_id, passed_alleles)
+                tuple(meta.normal_sample_name, meta.sample_id, passed_alleles)
             }
     
     normal_hla_genes_ch =  passed_heterozygous_hla_alleles_ch
@@ -65,7 +65,7 @@ workflow RNA_ANALYSIS {
 
     tumour_bams_ch = hla_allele_bams_ch
                 .filter(filterByMetadataField("sample_type", "tumour"))
-                .map{ meta, hla_bams, reference -> tuple(meta.normal_sample_id, meta, hla_bams, reference) }
+                .map{ meta, hla_bams, reference -> tuple(meta.normal_sample_name, meta, hla_bams, reference) }
 
     normal_bams_ch = hla_allele_bams_ch
                 .filter(filterByMetadataField("sample_type", "normal"))
@@ -74,7 +74,7 @@ workflow RNA_ANALYSIS {
     repression_ch = tumour_bams_ch
                 .combine(normal_bams_ch, by:0) // This will only keep tumour samples with a matched normal
                 .combine(rna_flagstat_ch, by:0) // This will merge in the normal flagstat
-                .map{ normal_sample_id, meta, tumour_hla_bams, reference, normal_hla_bams, normal_flagstat ->
+                .map{ normal_sample_name, meta, tumour_hla_bams, reference, normal_hla_bams, normal_flagstat ->
                     tuple(meta.sample_id, meta, tumour_hla_bams, reference, normal_hla_bams, normal_flagstat) 
                     }
                 .combine(tumour_normal_passed_allele_ch, by: 0) // This adds the alleles we can measure repression in
@@ -87,7 +87,7 @@ workflow RNA_ANALYSIS {
                 .map{ tumour_sample_id, meta, tumour_hla_bams, reference, normal_hla_bams, normal_flagstat, passed_alleles, tumour_flagstat, snp_positions, gtf, fasta, genome_size ->
                     tuple(meta.patient_id, meta, tumour_hla_bams, reference, normal_hla_bams, normal_flagstat, passed_alleles, tumour_flagstat, snp_positions, gtf) 
                     }
-    
+
     if (reference_type == "genome") {
         
         // DETECT_HLA_REPRESSION_EXON_SNPS ( repression_ch, "exon_snps", reference_type, aligner )
@@ -163,12 +163,11 @@ workflow RNA_ANALYSIS {
     }          
 
     // versions = versions.mix(DETECT_HLA_REPRESSION_EXON_SNPS.out.versions.first())
-    // versions = versions.mix(DETECT_HLA_REPRESSION_ALL_SNPS.out.versions.first())
-    // versions = versions.mix(GET_HLA_ALLELIC_IMBALANCE.out.versions.first())
-    // versions = versions.mix(GENERATE_COHORT_RNA_TABLES.out.versions)
+    versions = versions.mix(DETECT_HLA_REPRESSION_ALL_SNPS.out.versions.first())
+    versions = versions.mix(GET_HLA_ALLELIC_IMBALANCE_ALL_SNPS.out.versions.first())
 
     emit:
-    // versions
+    versions
     rna_all_snps_output_ch
     rna_exon_snps_output_ch
 }

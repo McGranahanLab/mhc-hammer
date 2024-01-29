@@ -105,7 +105,7 @@ matched_normals <- unique(sample_sheet[normal_sample_name != ""]$normal_sample_n
 missing_normals <- matched_normals[!matched_normals %in% sample_sheet$sample_name]
 if(length(missing_normals) > 0){
   
-  msg <- paste0("The following samples in the normal_sample_name column are in present in the sample_name column, and so do not have an associated bam_path:\n",
+  msg <- paste0("The following samples in the normal_sample_name column aren't in present in the sample_name column, and so do not have an associated bam_path:\n",
                 paste0(missing_normals, collapse = "\n"), 
                 "\nMake sure that every sample in normal_sample_name is also represented as a row in the sample sheet.\n")
   stop(msg)

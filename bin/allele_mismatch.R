@@ -119,9 +119,6 @@ patient_alleles_dt <- patient_alleles_dt[allele1 != "not typed" & allele2 != "no
 # add the patient to the table
 patient_alleles_dt[, patient := patient_id]
 
-# Only interested in HLA-A, B, C
-patient_alleles_dt <- patient_alleles_dt[gene %in% c("A", "B", "C")]
-
 # check no genes are repeated
 n_genes <- patient_alleles_dt[,.N,by = gene]
 if(nrow(n_genes[N>1])>0){
@@ -205,5 +202,4 @@ for(row_idx in 1:nrow(patient_alleles_dt)){
 
 patient_alleles_dt[homozygous == TRUE, num_snps := 0]
 
-# write out the MHC_HAMMER_output table
 fwrite(patient_alleles_dt, file = paste0(patient_id, "_", genome_transcriptome, "_allele_table.csv"))

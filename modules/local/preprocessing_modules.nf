@@ -2,7 +2,7 @@ process FLAGSTAT {
 
     tag "${meta.sample_id}"
 
-    container 'library://tpjones15/default/final_lohhla:latest'
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_single'
     
@@ -11,7 +11,7 @@ process FLAGSTAT {
 
     output:
     tuple val(meta), \
-          path("${meta.sample_id}_${meta.seq}.library_size.txt")              , emit: flagstat
+          path("${meta.sample_id}_${meta.seq}.library_size.txt")              , emit: library_size
     path "${meta.sample_id}_${meta.seq}.flagstat"
     path "${meta.sample_id}_${meta.seq}.library_size_with_unmapped.txt"       , emit: library_size_with_unmapped
     path "${meta.sample_id}_${meta.seq}.library_size_without_unmapped.txt"    , emit: library_size_without_unmapped
@@ -43,7 +43,7 @@ process SUBSET_BAMS {
 
     tag "${meta.sample_id}"
 
-    container 'library://tpjones15/default/final_lohhla:latest'
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_low'
     
@@ -59,7 +59,7 @@ process SUBSET_BAMS {
     path "${meta.sample_id}_${meta.seq}.read_counts.csv"                      , emit: read_counts
     path "versions.yml"                                                       , emit: versions
 
-    script: // This script is bundled with the pipeline in mhc_hammer/bin/
+    script: 
     def args = task.ext.args ?: ''
     sort_mem = (task.memory.giga*0.8).intValue()
     """
@@ -84,7 +84,7 @@ process GENERATE_HLA_FQS {
 
     tag "${meta.sample_id}"
 
-    container 'library://tpjones15/default/final_lohhla:latest'
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_single'
 

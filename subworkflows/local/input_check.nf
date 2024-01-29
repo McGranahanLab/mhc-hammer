@@ -2,43 +2,74 @@
 // Check input samplesheet and get read channels
 //
 
-include { SAMPLESHEET_CHECK } from '../../modules/local/samplesheet_check'
+include { SAMPLESHEET_CHECK; CHECK_HLA_TYPE_INPUT } from '../../modules/local/samplesheet_check'
 include { filterByMetadataField } from '../../lib/core_functions'
 
 workflow INPUT_CHECK {
 
     take:
     samplesheet // file: /path/to/samplesheet.csv
+    mhc_fasta_ch
 
     main:
+    // These channels are specific for when the input is subset bam files  
+    dna_library_size = Channel.empty()
+    rna_library_size = Channel.empty()
+    hla_alleles = Channel.empty()
+    versions = Channel.empty()
+    
     // Run process
     SAMPLESHEET_CHECK ( samplesheet )
 
-    // These channels are specific for when the input is subset bam files  
-    dna_flagstat = Channel.empty()
-    rna_flagstat = Channel.empty()
+    versions = versions.mix(SAMPLESHEET_CHECK.out.versions)
 
     if ( !params.run_bam_subsetting ) {
     // flagstat channel w matched norm
-    dna_flagstat = SAMPLESHEET_CHECK.out.csv
+    dna_library_size = SAMPLESHEET_CHECK.out.csv
                             .splitCsv ( header:true, sep:',' )
                             .filter { row -> row.sequencing_type == 'wxs' }
-                            .map { create_flagstat_channels(it) }   
+                            .map { create_library_size_channels(it) }   
                             .unique()
 
     // flagstat channel without matched norm
-    rna_flagstat = SAMPLESHEET_CHECK.out.csv
+    rna_library_size = SAMPLESHEET_CHECK.out.csv
                             .splitCsv ( header:true, sep:',' )
                             .filter { row -> row.sequencing_type == 'rnaseq' }
-                            .map { create_flagstat_channels(it) }   
+                            .map { create_library_size_channels(it) }   
                             .unique()
+    }
+
+    if ( !params.run_hlahd ) {
+
+        // get hla alleles for each sample
+        hla_alleles_to_check = SAMPLESHEET_CHECK.out.csv
+                .splitCsv ( header:true, sep:',' )
+                .map { create_hlahd_channels(it) }   
+                .unique()
+
+        hla_allele_files = hla_alleles_to_check
+                .map { patient_id, hla_alleles -> tuple(hla_alleles) }
+                .collect()
+                .flatten()
+
+        CHECK_HLA_TYPE_INPUT ( mhc_fasta_ch, hla_allele_files, SAMPLESHEET_CHECK.out.csv )
+
+        hla_alleles = CHECK_HLA_TYPE_INPUT.out.validated_samplesheet
+                .splitCsv(header: true, sep: ',')
+                .map { create_hlahd_channels(it) }
+                .unique()
+
+        versions = versions.mix(CHECK_HLA_TYPE_INPUT.out.versions)
     }
 
     emit:
 
     // Emit empty channel or flagstat channel [sample_id, flagstat] if using subset bams as input
-    dna_flagstat
-    rna_flagstat
+    dna_library_size
+    rna_library_size
+
+    // Emit empty channel or hla alleles channel [patient_id, hla_alleles.csv] if user hla alleles are provided
+    hla_alleles
 
     // parsed input.csv
     checked_inventory = SAMPLESHEET_CHECK.out.csv
@@ -99,9 +130,7 @@ workflow INPUT_CHECK {
                 .filter({row -> row.sample_type == 'tumour'})
                 // count the number of samples
                 .count()        
-            
-    versions = SAMPLESHEET_CHECK.out.versions // channel: [ versions.yml ]
-
+    versions
 }
 
 def create_bam_channels(LinkedHashMap row) {
@@ -133,13 +162,23 @@ def create_bam_channels(LinkedHashMap row) {
 
 }
 
-def create_flagstat_channels(LinkedHashMap row) {
-    def flagstat_array = []
-    if (!file(row.flagstat_path).exists()) {
-        exit 1, "ERROR: Please check input samplesheet -> flagstat file does not exist!\n${row.flagstat_path}"
+def create_library_size_channels(LinkedHashMap row) {
+    def library_size_array = []
+    if (!file(row.library_size_path).exists()) {
+        exit 1, "ERROR: Please check input samplesheet -> You've run the pipeline using --run_bam_subsetting false, but the following library size file does not exist!\n${row.library_size_path}"
     }
-    flagstat_array = [ row.sample_name, file(row.flagstat_path) ]
+    library_size_array = [ row.sample_name, file(row.library_size_path) ]
 
-    return flagstat_array
+    return library_size_array
 
+}
+
+def create_hlahd_channels(LinkedHashMap row) {
+        def hla_alleles_array = []
+        if (!file(row.hla_alleles_path).exists()) {
+                exit 1, "ERROR: Please check input samplesheet -> You've run the pipeline using --run_hlahd false, but the following hla alleles file does not exist!\n${row.hla_alleles_path}"
+        }
+        hla_alleles_array = [ row.patient, file(row.hla_alleles_path) ]
+        
+        return hla_alleles_array
 }

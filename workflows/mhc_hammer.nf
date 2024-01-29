@@ -90,7 +90,7 @@ if (params.codon_table) {
 //
 
 include { INPUT_CHECK } from '../subworkflows/local/input_check'
-include { PREPROCESSING; SUBSET_BAM_PREPROCESSING } from '../subworkflows/local/preprocessing_subworkflow'
+include { PREPROCESSING; PREPROCESSING_WITHOUT_BAM_SUBSETTING } from '../subworkflows/local/preprocessing_subworkflow'
 include { DNA_ANALYSIS; DETECT_MUTATIONS } from '../subworkflows/local/mhc_hammer_dna_subworkflow'
 include { GENERATE_DNA_NOVOALIGN_BAMS } from '../subworkflows/local/dna_novoalign_alignment_subworkflow'
 include { GENERATE_RNA_NOVOALIGN_BAMS } from '../subworkflows/local/rna_novoalign_alignment_subworkflow'
@@ -138,7 +138,7 @@ workflow MHC_HAMMER {
     // SUBWORKFLOW: Read in samplesheet, validate and stage input files
     //
 
-    INPUT_CHECK ( ch_input )
+    INPUT_CHECK ( ch_input, mhc_fasta_ch )
     
     // Add software used in INPUT_CHECK
     ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
@@ -175,26 +175,26 @@ workflow MHC_HAMMER {
     preprocessing_versions = PREPROCESSING.out.versions
     hlahd_input_ch = PREPROCESSING.out.hlahd_input
     wxs_fqs_ch = PREPROCESSING.out.wxs_fqs
-    dna_flagstat = PREPROCESSING.out.dna_flagstat
+    dna_library_size_ch = PREPROCESSING.out.dna_library_size
     rna_fqs_ch = PREPROCESSING.out.rna_fqs
     rna_bams_ch = PREPROCESSING.out.rna_bams
-    rna_flagstat_ch = PREPROCESSING.out.rna_flagstat
+    rna_library_size_ch = PREPROCESSING.out.rna_library_size
 
     } else {
     
-    SUBSET_BAM_PREPROCESSING ( 
+    PREPROCESSING_WITHOUT_BAM_SUBSETTING ( 
         INPUT_CHECK.out.bams_ch, 
         germline_sample_count_ch,
         mhc_coords_ch
     )
     // update downstream input channels 
-    preprocessing_versions = SUBSET_BAM_PREPROCESSING.out.versions
-    hlahd_input_ch = SUBSET_BAM_PREPROCESSING.out.hlahd_input
-    wxs_fqs_ch = SUBSET_BAM_PREPROCESSING.out.wxs_fqs
-    dna_flagstat = INPUT_CHECK.out.dna_flagstat
-    rna_fqs_ch = SUBSET_BAM_PREPROCESSING.out.rna_fqs
-    rna_bams_ch = SUBSET_BAM_PREPROCESSING.out.rna_bams
-    rna_flagstat_ch = INPUT_CHECK.out.rna_flagstat
+    preprocessing_versions = PREPROCESSING_WITHOUT_BAM_SUBSETTING.out.versions
+    hlahd_input_ch = PREPROCESSING_WITHOUT_BAM_SUBSETTING.out.hlahd_input
+    wxs_fqs_ch = PREPROCESSING_WITHOUT_BAM_SUBSETTING.out.wxs_fqs
+    dna_library_size_ch = INPUT_CHECK.out.dna_library_size
+    rna_fqs_ch = PREPROCESSING_WITHOUT_BAM_SUBSETTING.out.rna_fqs
+    rna_bams_ch = PREPROCESSING_WITHOUT_BAM_SUBSETTING.out.rna_bams
+    rna_library_size_ch = INPUT_CHECK.out.rna_library_size
     }
 
     // Add software used in PREPROCESSING
@@ -204,19 +204,28 @@ workflow MHC_HAMMER {
     // MODULE: Run HLAHD on WXS normal sample
     //
 
-    if ( params.hlahd_local_install ) {
-        HLAHD_LOCAL ( hlahd_input_ch,  mhc_gtf_ch )
+    if ( params.run_hlahd) {
+
+        if ( params.hlahd_local_install ) {
+            HLAHD_LOCAL ( hlahd_input_ch,  mhc_gtf_ch )
+
+            // define outputs
+            hlahd_genotype_ch = HLAHD_LOCAL.out.genotype
+            ch_versions = ch_versions.mix(HLAHD_LOCAL.out.versions)
+
+        } else {
+            HLAHD ( hlahd_input_ch,  mhc_gtf_ch )
+
+            // define outputs
+            hlahd_genotype_ch = HLAHD.out.genotype
+            ch_versions = ch_versions.mix(HLAHD.out.versions)
+        }
+
+    } else { // if not running hlahd, use user provided hla alleles
 
         // define outputs
-        hlahd_genotype_ch = HLAHD_LOCAL.out.genotype
-        ch_versions = ch_versions.mix(HLAHD_LOCAL.out.versions)
+        hlahd_genotype_ch = INPUT_CHECK.out.hla_alleles
 
-    } else {
-        HLAHD ( hlahd_input_ch,  mhc_gtf_ch )
-
-        // define outputs
-        hlahd_genotype_ch = HLAHD.out.genotype
-        ch_versions = ch_versions.mix(HLAHD.out.versions)
     }
 
     // Now we check the output of HLAHD to see if it has failed for any samples
@@ -257,29 +266,35 @@ workflow MHC_HAMMER {
         GENERATE_REFERENCES.out.genome_reference,
         GENERATE_REFERENCES.out.mosdepth_reference
     )
+    
+    // ch_versions = ch_versions.mix(GENERATE_DNA_NOVOALIGN_BAMS.out.versions)
 
     // SUBWORKFLOW: detect HLA allele copy number and allelic imbalance
     DNA_ANALYSIS (
-        dna_flagstat,
+        dna_library_size_ch,
         GENERATE_REFERENCES.out.genome_snp_positions,
         GENERATE_REFERENCES.out.patient_gtf,
         purity_ploidy_ch,
         GENERATE_DNA_NOVOALIGN_BAMS.out.hla_allele_bams_ch,
         GENERATE_DNA_NOVOALIGN_BAMS.out.passed_heterozygous_hla_genes_ch
     )
+    
+    ch_versions = ch_versions.mix(DNA_ANALYSIS.out.versions)
 
     // SUBWORKFLOW: detect HLA allele mutations
-    DETECT_MUTATIONS (
-        GENERATE_DNA_BAMS.out.hla_allele_bams_ch,
-        GENERATE_DNA_BAMS.out.passed_hla_alleles_ch,
-        GENERATE_REFERENCES.out.mutation_calling_reference,
-        tumour_wxs_sample_count_ch,
-        germline_sample_count_ch,
-        gl_samples,
-        INPUT_CHECK.out.checked_inventory
-    )
+    // DETECT_MUTATIONS (
+    //     GENERATE_DNA_BAMS.out.hla_allele_bams_ch,
+    //     GENERATE_DNA_BAMS.out.passed_hla_alleles_ch,
+    //     GENERATE_REFERENCES.out.mutation_calling_reference,
+    //     tumour_wxs_sample_count_ch,
+    //     germline_sample_count_ch,
+    //     gl_samples,
+    //     INPUT_CHECK.out.checked_inventory
+    // )
 
-    rna_output_ch = Channel.empty()
+    // ch_versions = ch_versions.mix(DETECT_MUTATIONS.out.versions)
+
+    // rna_output_ch = Channel.empty()
 
     if ( params.run_rna_analysis ) {
 
@@ -290,6 +305,8 @@ workflow MHC_HAMMER {
             GENERATE_REFERENCES.out.transcriptome_reference,
             GENERATE_REFERENCES.out.mosdepth_exons_reference
         )
+        
+        ch_versions = ch_versions.mix(GENERATE_RNA_NOVOALIGN_BAMS.out.versions)
 
         //
         // SUBWORKFLOW: Detect HLA allele expression and allelic imbalance in all samples
@@ -297,7 +314,7 @@ workflow MHC_HAMMER {
         //
 
         NOVOALIGN_RNA_ANALYSIS (
-            rna_flagstat_ch,
+            rna_library_size_ch,
             GENERATE_REFERENCES.out.transcriptome_snp_positions,
             GENERATE_REFERENCES.out.transcriptome_allele_tables,
             GENERATE_RNA_NOVOALIGN_BAMS.out.hla_allele_bams_ch,
@@ -310,7 +327,7 @@ workflow MHC_HAMMER {
             "novoalign"
         )
 
-        rna_output_ch = MHC_HAMMER_RNA.out.rna_output_ch
+        ch_versions = ch_versions.mix(NOVOALIGN_RNA_ANALYSIS.out.versions)
 
         GENERATE_RNA_STAR_BAMS (
             GENERATE_REFERENCES.out.mosdepth_reference,
@@ -320,7 +337,7 @@ workflow MHC_HAMMER {
         )
 
         STAR_RNA_ANALYSIS (
-            rna_flagstat_ch,
+            rna_library_size_ch,
             GENERATE_REFERENCES.out.genome_snp_positions,
             GENERATE_REFERENCES.out.genome_allele_tables,
             GENERATE_RNA_STAR_BAMS.out.hla_allele_bams_ch,
@@ -369,6 +386,7 @@ workflow MHC_HAMMER {
             cohort_alternative_splicing_input_text_file
         )
 
+        ch_versions = ch_versions.mix(ALT_SPLICING.out.versions)
     }
     
     // Collate mosdepth output
@@ -394,28 +412,33 @@ workflow MHC_HAMMER {
         cohort_mosdepth_input_text_file
     )
 
-    // collate library sizes table
-    library_size_input_ch = PREPROCESSING.out.unmapped_count_ch
-            .mix(PREPROCESSING.out.mapped_count_ch)
-            .flatten()
-            .collect()
-            .map{ csvs ->
-                sorted_csvs = csvs.sort()
-                unique_csvs = sorted_csvs.unique { it.toString().tokenize('/').last() }
-                tuple(unique_csvs)
-                }
+    // collate library sizes table - only if flagstat is run
+    if ( params.run_bam_subsetting ) {
 
-    library_size_text_file = library_size_input_ch
-            .flatten()
-            .map { it.getName() }
-            .collectFile(name: 'input_csvs.txt', newLine: true)
+        library_size_input_ch = PREPROCESSING.out.unmapped_count_ch
+                    .mix(PREPROCESSING.out.mapped_count_ch)
+                    .flatten()
+                    .collect()
+                    .map{ csvs ->
+                        sorted_csvs = csvs.sort()
+                        unique_csvs = sorted_csvs.unique { it.toString().tokenize('/').last() }
+                        tuple(unique_csvs)
+                        }
 
-    CREATE_LIBRARY_SIZE_TABLE(
-        library_size_input_ch,
-        INPUT_CHECK.out.checked_inventory,
-        library_size_text_file
-    )
+            // Create text file with input csvs for final table
+            library_size_text_file = library_size_input_ch
+                    .flatten()
+                    .map { it.getName() }
+                    .collectFile(name: 'input_csvs.txt', newLine: true)
 
+            CREATE_LIBRARY_SIZE_TABLE(
+                library_size_input_ch,
+                INPUT_CHECK.out.checked_inventory,
+                library_size_text_file
+            )
+
+    }
+    
     // collate overview table
     genome_allele_tables_ch = GENERATE_REFERENCES.out.genome_allele_tables
             .map{patient_id, genome_allele_tables -> tuple(genome_allele_tables)}
@@ -423,13 +446,19 @@ workflow MHC_HAMMER {
     transcriptome_allele_tables_ch = GENERATE_REFERENCES.out.transcriptome_allele_tables
             .map{patient_id, transcriptome_allele_tables -> tuple(transcriptome_allele_tables)}
     
+    dna_library_size_for_output = dna_library_size_ch
+            .map{sample_name, library_size_path -> tuple(library_size_path)}
+    rna_library_size_for_output = rna_library_size_ch
+            .map{sample_name, library_size_path -> tuple(library_size_path)}            
+
     allele_table_input_ch = GENERATE_RNA_NOVOALIGN_BAMS.out.hla_bam_read_count_ch
             .mix(GENERATE_DNA_NOVOALIGN_BAMS.out.hla_bam_read_count_ch)
             .mix(DNA_ANALYSIS.out.dna_all_snps_output_ch)
             .mix(NOVOALIGN_RNA_ANALYSIS.out.rna_all_snps_output_ch)
             .mix(genome_allele_tables_ch)
             .mix(transcriptome_allele_tables_ch)
-            .mix(CREATE_LIBRARY_SIZE_TABLE.out.library_size_table)
+            .mix(rna_library_size_for_output)
+            .mix(dna_library_size_for_output)
             .flatten()
             .collect()
             .map{ csvs ->
@@ -437,7 +466,8 @@ workflow MHC_HAMMER {
                 unique_csvs = sorted_csvs.unique { it.toString().tokenize('/').last() }
                 tuple(unique_csvs)
                 }
-  
+    
+    // Create text file with input csvs for final table
     allele_input_text_file = allele_table_input_ch
             .flatten()
             .map { it.getName() }
@@ -463,9 +493,9 @@ workflow MHC_HAMMER {
         params.min_depth
     )
 
-    // CUSTOM_DUMPSOFTWAREVERSIONS (
-    //     ch_versions.unique().collectFile(name: 'collated_versions.yml')
-    // )
+    CUSTOM_DUMPSOFTWAREVERSIONS (
+        ch_versions.unique().collectFile(name: 'collated_versions.yml')
+    )
 
 }
 

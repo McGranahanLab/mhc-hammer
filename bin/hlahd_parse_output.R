@@ -15,10 +15,15 @@ parser$add_argument('--sample_id',  nargs=1,
                     help='sample_id',
                     required=TRUE)
 
+parser$add_argument('--genes',  nargs='+',
+                    help='genes to run',
+                    required=TRUE)
+
 args <- parser$parse_args()
 hlahd_result_folder <- args$hlahd_folder
 gtf_path <- args$gtf_path
 sample_id <- args$sample_id
+genes <- args$genes
 hlahd_predictions_folder <- "hla_predictions"
 
 # read the gtf and add columns that we'll use later
@@ -29,9 +34,14 @@ gtf[, similar_allele := gsub('.*?similar_allele_save_name "(.*?)";.*', "\\1", ot
 gtf[, similar_allele_distance := gsub('.*?min_dist "(.*?)";.*', "\\1", other_values)]
 
 # get the HLA-HD files and turn into one table
-hla_a_est_files <- list.files(hlahd_result_folder, pattern = "_A.est")
-hla_b_est_files <- list.files(hlahd_result_folder, pattern = "_B.est")
-hla_c_est_files <- list.files(hlahd_result_folder, pattern = "_C.est")
+est_files <- paste0(hlahd_result_folder, "/", sample_id, "_", genes, ".est.txt")
+est_files_exist <- file.exists(est_files)
+
+if(any(!est_files_exist)){
+  cat("These HLA-HD *est.txt files are missing:\n")
+  cat(est_files[!est_files_exist], sep = "\n")
+  stop()
+}
 
 hlahd_result <- data.table(gene = character(),
                      allele_id = character(),
@@ -41,9 +51,9 @@ hlahd_result <- data.table(gene = character(),
                      digit6 = character(),
                      digit8 = character())
 
-for(g_file in c(hla_a_est_files, hla_b_est_files, hla_c_est_files)){
+for(g_file in est_files){
   cat("doing: ", g_file, "\n")
-  g <- readLines(paste0(hlahd_result_folder, "/", g_file))
+  g <- readLines(g_file)
   
   if(g[1] == "No candidate."){
     next()
@@ -66,7 +76,7 @@ for(g_file in c(hla_a_est_files, hla_b_est_files, hla_c_est_files)){
            old = paste0("V", 1:ncol(allele1_fields_dt)),
            new = paste0("digit", seq(from = 2, to = ncol(allele1_fields_dt)*2, by = 2)))
   
-  allele1_fields_dt[, gene := gsub(".*_(.*).est.txt", "\\1", g_file)]
+  allele1_fields_dt[, gene := gsub(".*_(.*).est.txt", "\\1", basename(g_file))]
   allele1_fields_dt[, allele_id := "allele1"]        
   allele1_fields_dt[, allele := allele1]        
   
@@ -87,7 +97,7 @@ for(g_file in c(hla_a_est_files, hla_b_est_files, hla_c_est_files)){
              old = paste0("V", 1:ncol(allele2_fields_dt)),
              new = paste0("digit", seq(from = 2, to = ncol(allele2_fields_dt)*2, by = 2)))
     
-    allele2_fields_dt[, gene := gsub(".*_(.*).est.txt", "\\1", g_file)]
+    allele2_fields_dt[, gene := gsub(".*_(.*).est.txt", "\\1", basename(g_file))]
     allele2_fields_dt[, allele_id := "allele2"]        
     allele2_fields_dt[, allele := allele2]       
     hlahd_result <- rbindlist(list(hlahd_result, allele2_fields_dt), use.names = TRUE, fill = TRUE)
@@ -100,7 +110,7 @@ for(g_file in c(hla_a_est_files, hla_b_est_files, hla_c_est_files)){
 # Check there is a HLAHD result for at least one gene
 any_gene_present = FALSE
 
-for (gene_id in c("A", "B", "C")) {
+for (gene_id in genes) {
   gene_data = hlahd_result[gene == gene_id]
   
   if (all(c("allele1", "allele2") %in% gene_data$allele_id)) {
@@ -162,9 +172,9 @@ if(any_gene_present){
   # make wide table
   hlahd_result_wide <- dcast(hlahd_result, gene ~ allele_id, value.var = "seqname")
 
-  # If A,B or C is missing in the gene columm, add a row with "not typed" in the allele columns
-  if(!all(c("A", "B", "C") %in% hlahd_result_wide$gene)){
-    missing_genes <- c("A", "B", "C")[!c("A", "B", "C") %in% hlahd_result_wide$gene]
+  # If genes are missing in the gene columm, add a row with "not typed" in the allele columns
+  if(!all(genes %in% hlahd_result_wide$gene)){
+    missing_genes <- genes[!genes %in% hlahd_result_wide$gene]
     missing_genes <- data.table(gene = missing_genes, allele1 = "not typed", allele2 = "not typed")
     hlahd_result_wide <- rbind(hlahd_result_wide, missing_genes)
     # arrange alphabetically by gene
@@ -178,5 +188,5 @@ if(any_gene_present){
 } else { # if no HLA genes were found, create a file with "not typed" in the allele columns
   hla_alleles_path <- paste0(hlahd_result_folder, "/", sample_id, "_hla_alleles.csv")
   cat("Saving to: ", hla_alleles_path, "\n")
-  fwrite(data.table(gene = c("A", "B", "C"), allele1 = "not typed", allele2 = "not typed"), hla_alleles_path, col.names = FALSE)
+  fwrite(data.table(gene = genes, allele1 = "not typed", allele2 = "not typed"), hla_alleles_path, col.names = FALSE)
 }

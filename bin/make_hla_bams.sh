@@ -16,7 +16,7 @@ echo "aligner=$aligner"
 
 
 # Get patient alleles to loop through
-alleles=$(grep ^'>' *reference.fa | sed 's/^>*//' | sort -u | grep hla_[a-c])
+alleles=$(grep ^'>' *reference.fa | sed 's/^>*//' | sort -u )
 
 # Loop through alleles
 for i in ${alleles}; do

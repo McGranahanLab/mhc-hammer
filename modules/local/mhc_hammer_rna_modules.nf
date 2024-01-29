@@ -2,7 +2,7 @@ process DETECT_HLA_REPRESSION {
     
     tag "${meta.sample_id}"
 
-    container "library://tpjones15/default/final_lohhla:latest"
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_single'
 
@@ -27,7 +27,7 @@ process DETECT_HLA_REPRESSION {
 
     hla_alleles_to_run = passed_alleles.collect().join(" ")
     """ 
-
+    echo "rerun"
     for allele in ${hla_alleles_to_run}; do
         echo Doing allele \${allele}
         
@@ -75,14 +75,16 @@ process DETECT_HLA_REPRESSION {
 
         Rscript --vanilla ${baseDir}/bin/count_reads_once.R \
         --snp_reads_overlap_bed \$allele_tumour_snp_reads_overlap_7cols \
+        --snp_path \$allele_snp_path \
         --out_csv \$allele_tumour_reads_count_once_coverage
 
         Rscript --vanilla ${baseDir}/bin/count_reads_once.R \
         --snp_reads_overlap_bed \$allele_gl_snp_reads_overlap_7cols \
+        --snp_path \$allele_snp_path \
         --out_csv \$allele_gl_reads_count_once_coverage
 
         # get repression 
-        echo Step 4: Compare tumour and normal samples to detect HLA allelic repression 
+        echo Step 2: Compare tumour and normal samples to detect HLA allelic repression 
         Rscript --vanilla ${baseDir}/bin/get_rna_tumour_normal_comparison.R \
         --allele \$allele \
         --sample_name ${meta.sample_id} \
@@ -126,7 +128,7 @@ process DETECT_HLA_REPRESSION {
 process GET_HLA_ALLELIC_IMBALANCE {
     tag "${meta.sample_id}"
 
-    container "library://tpjones15/default/final_lohhla:latest"
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_single'
 
@@ -150,7 +152,7 @@ process GET_HLA_ALLELIC_IMBALANCE {
     heterozygous_hla_genes = passed_heterozygous_genes.collect().join(" ")
     """
     for gene in ${heterozygous_hla_genes}; do
-
+        echo "rerun"
         echo Calculating RNA AIB for \${gene}
 
         # Declare inputs
@@ -206,10 +208,12 @@ process GET_HLA_ALLELIC_IMBALANCE {
         
         Rscript --vanilla ${baseDir}/bin/count_reads_once.R \
         --snp_reads_overlap_bed \$allele1_snp_reads_overlap_7cols \
+        --snp_path \$allele1_snp_path \
         --out_csv \$allele1_reads_count_once_coverage
 
         Rscript --vanilla ${baseDir}/bin/count_reads_once.R \
         --snp_reads_overlap_bed \$allele2_snp_reads_overlap_7cols \
+        --snp_path \$allele2_snp_path \
         --out_csv \$allele2_reads_count_once_coverage
 
         # Step 2 - Calculate allelic imbalance
@@ -281,10 +285,12 @@ process GET_HLA_ALLELIC_IMBALANCE {
         
         Rscript --vanilla ${baseDir}/bin/count_reads_once.R \
         --snp_reads_overlap_bed \$allele1_snp_reads_overlap_7cols_single_allele \
+        --snp_path \$allele1_snp_path \
         --out_csv \$allele1_reads_count_once_coverage_single_allele
 
         Rscript --vanilla ${baseDir}/bin/count_reads_once.R \
         --snp_reads_overlap_bed \$allele2_snp_reads_overlap_7cols_single_allele \
+        --snp_path \$allele2_snp_path \
         --out_csv \$allele2_reads_count_once_coverage_single_allele
 
         aib_output="${meta.sample_id}.\${gene}.${aligner}.${snp_type}.single_mapping.aib.csv"
@@ -335,7 +341,7 @@ process GET_HLA_ALLELIC_IMBALANCE {
 process GET_HLA_ALLELE_EXPRESSION {
     tag "${meta.sample_id}"
 
-    container "library://tpjones15/default/final_lohhla:latest"
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_single'
 
@@ -357,6 +363,7 @@ process GET_HLA_ALLELE_EXPRESSION {
     echo First, get reads that map to a single or multiple alleles, or multiple genes
     # Get reads that map only to a single allele, and count them
 
+    echo "rerun"
 
     Rscript --vanilla ${baseDir}/bin/count_multimapping_reads.R \
     --hla_bam_paths $hla_bams \
@@ -392,87 +399,3 @@ process GET_HLA_ALLELE_EXPRESSION {
     """
 }
 
-
-// process GENERATE_FINAL_RPKM_TABLE {
-    
-//     tag "GENERATE_FINAL_RPKM_TABLE"
-
-//     container "library://tpjones15/default/final_lohhla:latest"
-
-//     label 'process_single'
-
-//     input:
-//     path(rpkm_tables)
-
-//     output:
-//     path("cohort_allele_rpkm.csv"), emit: allele_rpkm_table
-//     path("cohort_gene_rpkm.csv"), emit: gene_rpkm_table
-
-//     path("versions.yml"), emit: versions
-
-//     script:
-//     // make object with rpkm tables separated by a space
-//     rpkm_tables = rpkm_tables.join(" ")
-//     """
-//     # Run Rscript to generate RPKM table
-//     Rscript --vanilla ${baseDir}/bin/create_final_rpkms.R \
-//     --rpkm_tables ${rpkm_tables} 
-
-//     # Get R version and package versions
-//     R_VERSION=\$(Rscript -e "cat(as.character(getRversion()))")
-//     DT_VERSION=\$(Rscript -e "cat(paste(packageVersion('data.table'), collapse = ''))")
-//     AP_VERSION=\$(Rscript -e "cat(paste(packageVersion('argparse'), collapse = ''))")
-
-//     cat <<-END_VERSIONS > versions.yml
-//     "${task.process}":
-//         R: \${R_VERSION}
-//         data.table: \${DT_VERSION}
-//         argparse: \${AP_VERSION}
-//     END_VERSIONS
-//     """
-
-// }
-
-// process GENERATE_COHORT_RNA_TABLES {
-    
-//     tag "GENERATE_COHORT_RNA_TABLES"
-
-//     container "library://tpjones15/default/final_lohhla:latest"
-
-//     label 'process_single'
-
-//     input: 
-//     path  rna_csvs 
-//     path  rna_csvs_file
-//     path  inventory
-//     val aligner
-//     val snp_type
-
-//     output:
-//     path("*.csv"),  emit: rna_cohort_table
-
-//     path("versions.yml"), emit: versions
-
-//     """
-//     # Run Rscript to generate AIB table
-//     Rscript --vanilla ${baseDir}/bin/create_cohort_rna_tables.R \
-//     --rna_aib_file_path ${rna_csvs_file} \
-//     --inventory_path ${inventory} \
-//     --min_frac_mapping_uniquely ${params.min_frac_mapping_uniquely} \
-//     --max_frac_mapping_multi_gene ${params.max_frac_mapping_multi_gene} \
-//     --out_file_prefix mhc_hammer_rna_${aligner}_${snp_type}
-
-//     # Get R version and package versions
-//     R_VERSION=\$(Rscript -e "cat(as.character(getRversion()))")
-//     DT_VERSION=\$(Rscript -e "cat(paste(packageVersion('data.table'), collapse = ''))")
-//     AP_VERSION=\$(Rscript -e "cat(paste(packageVersion('argparse'), collapse = ''))")
-
-//     cat <<-END_VERSIONS > versions.yml
-//     "${task.process}":
-//         R: \${R_VERSION}
-//         data.table: \${DT_VERSION}
-//         argparse: \${AP_VERSION}
-//     END_VERSIONS
-//     """
-
-// }

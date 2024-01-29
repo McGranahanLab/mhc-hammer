@@ -1,7 +1,7 @@
 process GENERATE_REFERENCES {
     tag "${patient_id}"
 
-    container "library://tpjones15/default/final_lohhla:latest"
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
     label 'process_single'
 
@@ -28,7 +28,7 @@ process GENERATE_REFERENCES {
 
     tuple val(patient_id), path("${patient_id}.bed")                           , optional:true, emit: mosdepth_reference
     tuple val(patient_id), path("${patient_id}.exons.bed")                     , optional:true, emit: mosdepth_exons_reference
-    tuple val(patient_id), path("hla_[a-c]_*transcriptome.snp_pos.bed")        , optional:true, emit: transcriptome_snp_positions
+    tuple val(patient_id), path("*transcriptome.snp_pos.bed")        , optional:true, emit: transcriptome_snp_positions
     tuple val(patient_id), path("${patient_id}_mhc_transcriptome_reference.fa"), 
                            path("${patient_id}.mhc_transcriptome_fasta.nix")   , optional:true, emit: transcriptome_reference 
     tuple val(patient_id), path("${patient_id}_transcriptome_allele_table.csv"), optional:true, emit: transcriptome_allele_tables
@@ -36,7 +36,7 @@ process GENERATE_REFERENCES {
     path ("versions.yml")                                                      , emit: versions
     
     run_rna_analysis = "${params.run_rna_analysis}"
-    script: // scripts used are bundled with the pipeline, in McGranahanLab/MHChammer/bin/
+    script: 
     """
     if [ "${params.run_rna_analysis}" == "true" ]; then
         # Run Rscript to generate transcriptome allele mismatches
@@ -60,7 +60,7 @@ process GENERATE_REFERENCES {
 
         echo "Creating transcriptome sequence dictionary"
         # create reference dictionary
-        gatk CreateSequenceDictionary -R ${patient_id}_mhc_transcriptome_reference.fa
+        picard CreateSequenceDictionary -R ${patient_id}_mhc_transcriptome_reference.fa
         echo "Done"
 
         echo "Creating transcriptome novoindex"
@@ -116,7 +116,7 @@ process GENERATE_REFERENCES {
 
     echo "Creating genome sequence dictionary"
     # create genome reference dictionary
-    gatk CreateSequenceDictionary -R ${patient_id}_mhc_genome_reference.fa
+    picard CreateSequenceDictionary -R ${patient_id}_mhc_genome_reference.fa
     echo "Done"
 
     echo "Creating genome novoindex"

@@ -104,23 +104,23 @@ get_gtf <- function(allele_dt, allele, gene, strand){
   gtf[, end := as.numeric(end)]
   
   # check that the number of introns and exons - HLA-B
-  if(nrow(gtf[type == "exon"]) != 7 & gene == "HLA-B"){
-    stop("There should be 7 exons for HLA-B")
-  }
-  if(nrow(gtf[type == "intron"]) != 6 & gene == "HLA-B"){
-    stop("There should be 6 introns for HLA-B")
-  }
-  
-  # check that the number of introns and exons - HLA-A and HLA-C
-  if(nrow(gtf[type == "exon"]) != 8 & gene %in% c("HLA-C", "HLA-A")){
-    stop("There should be 7 exons for HLA-B")
-  }
-  if(nrow(gtf[type == "intron"]) != 7 & gene %in% c("HLA-C", "HLA-A")){
-    stop("There should be 6 introns for HLA-B")
-  }
-  if(!gene %in% c("HLA-B", "HLA-A", "HLA-C")){
-    stop("Need to update")
-  }
+  # if(nrow(gtf[type == "exon"]) != 7 & gene == "HLA-B"){
+  #   stop("There should be 7 exons for HLA-B")
+  # }
+  # if(nrow(gtf[type == "intron"]) != 6 & gene == "HLA-B"){
+  #   stop("There should be 6 introns for HLA-B")
+  # }
+  # 
+  # # check that the number of introns and exons - HLA-A and HLA-C
+  # if(nrow(gtf[type == "exon"]) != 8 & gene %in% c("HLA-C", "HLA-A")){
+  #   stop("There should be 7 exons for HLA-B")
+  # }
+  # if(nrow(gtf[type == "intron"]) != 7 & gene %in% c("HLA-C", "HLA-A")){
+  #   stop("There should be 6 introns for HLA-B")
+  # }
+  # if(!gene %in% c("HLA-B", "HLA-A", "HLA-C")){
+  #   stop("Need to update")
+  # }
   
   if(strand == "-"){
     
@@ -457,35 +457,33 @@ get_cds_line <- function(ft_lines){
   cds_start_line_idx <- grep(".*[[:space:]]CDS[[:space:]].*", ft_lines)
   
   if(length(cds_start_line_idx) == 0){
-    return("no_cds")
-  }else{
-    
-    if(length(cds_start_line_idx) != 1){
-      stop("There should only be one CDS line")  
-    }
-    
-    if(length(cds_start_line_idx) == 0){
-      stop("No CDS line?")
-    }
-    cds_start_line <- grep(".*[[:space:]]CDS[[:space:]].*", ft_lines, value = TRUE)
-    cds_start_line <- gsub(".*(join.*)", "\\1", cds_start_line)
-    cds_start_line_contains_end <- grepl(")", cds_start_line)
-    
-    cds_next_lines <- c()
-    if(!cds_start_line_contains_end){
-      
-      for(i in (cds_start_line_idx + 1):length(ft_lines)){
-        
-        cds_next_lines <- c(cds_next_lines, gsub("FT.*?([0-9]+.*)", "\\1", ft_lines[i]))
-        cds_next_line_contains_end <- grepl(")", gsub("FT.*?([0-9]+.*)", "\\1", ft_lines[i]))
-        if(cds_next_line_contains_end){
-          break
-        }
-      }
-    }
-    cds_line <- paste0(c(cds_start_line, cds_next_lines), collapse = "")
-    return(cds_line)
+    stop("No cds line?")
   }
+  
+  if(length(cds_start_line_idx) != 1){
+    stop("There should only be one CDS line start")  
+  }
+  
+  # loop over the cds lines until you get a "/"
+  cds_lines <- c()
+  for(cds_line_idx in cds_start_line_idx:length(ft_lines)){
+    
+    # check if it contains "/"
+    stop_loop <- grepl('\\/', ft_lines[cds_line_idx])
+    if(stop_loop){
+      break
+    }
+    
+    cds_lines <- c(cds_lines,
+                   gsub(".*?([0-9].*[0-9]).*", "\\1", ft_lines[cds_line_idx]))
+  }
+  if(length(cds_lines) == 0){
+    stop("Why no CDS lines?")
+  }
+  
+  cds_line <- paste0(cds_lines, collapse = ",")
+  return(cds_line)
+  
 }
 
 get_translation_line <- function(ft_lines){

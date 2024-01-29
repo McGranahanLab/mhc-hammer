@@ -44,11 +44,11 @@ workflow ALT_SPLICING {
           combined_tumour_normal_sjs_ch
         )
 
-//     versions = versions.mix(DETECT_ALT_SPLICING.out.versions.first()) // channel: [ versions.yml ]
-//     // versions = versions.mix(MOSDEPTH_STAR.out.versions.first()) // channel: [ versions.yml ]
+    versions = versions.mix(DETECT_ALT_SPLICING.out.versions.first())
 
     emit: 
     tumour_normal_sjs_ch = TUMOUR_NORMAL_ALT_SPLICING_ENRICHMENT.out.tumour_normal_splice_junctions_tables
     novel_sjs_ch = DETECT_ALT_SPLICING.out.novel_splice_junctions_tables
     known_sjs_ch = DETECT_ALT_SPLICING.out.known_splice_junctions_tables
+    versions
 }
