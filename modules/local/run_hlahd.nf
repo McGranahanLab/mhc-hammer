@@ -55,16 +55,13 @@ process HLAHD_LOCAL {
     # The patient hla allele types csv is not produced and the job will be restarted with more resources
     if [ -f result/${meta.patient_id}_A.est.txt ] \
         && [ -f result/${meta.patient_id}_B.est.txt ] \
-        && [ -f result/${meta.patient_id}_C.est.txt ] \
-        && [ -f result/${meta.patient_id}_E.est.txt ] \
-        && [ -f result/${meta.patient_id}_F.est.txt ] \
-        && [ -f result/${meta.patient_id}_G.est.txt ]; then
+        && [ -f result/${meta.patient_id}_C.est.txt ]; then
     
         Rscript ${projectDir}/bin/hlahd_parse_output.R \
         --hlahd_folder result \
         --gtf_path ${mhc_gtf} \
         --sample_id ${meta.patient_id} \
-        --genes A B C E F G
+        --genes A B C 
 
         mv result/${meta.patient_id}_hla_alleles.csv ./
 
@@ -148,16 +145,13 @@ process HLAHD {
     # The patient hla allele types csv is not produced and the job will be restarted with more resources
     if [ -f result/${meta.patient_id}_A.est.txt ] \
         && [ -f result/${meta.patient_id}_B.est.txt ] \
-        && [ -f result/${meta.patient_id}_C.est.txt ] \
-        && [ -f result/${meta.patient_id}_E.est.txt ] \
-        && [ -f result/${meta.patient_id}_F.est.txt ] \
-        && [ -f result/${meta.patient_id}_G.est.txt ]; then
+        && [ -f result/${meta.patient_id}_C.est.txt ]; then
     
         Rscript ${projectDir}/bin/hlahd_parse_output.R \
         --hlahd_folder result \
         --gtf_path ${mhc_gtf} \
         --sample_id ${meta.patient_id} \
-        --genes A B C E F G
+        --genes A B C 
 
         mv result/${meta.patient_id}_hla_alleles.csv ./
 
