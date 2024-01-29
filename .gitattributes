@@ -1,0 +1,10 @@
+assets/kmer_files/imgt_30mers.fa filter=lfs diff=lfs merge=lfs -text
+assets/mhc_references/all_allele_features.csv filter=lfs diff=lfs merge=lfs -text
+assets/mhc_references/all_allele_info.csv filter=lfs diff=lfs merge=lfs -text
+assets/mhc_references/genome/mhc_genome.fasta filter=lfs diff=lfs merge=lfs -text
+assets/mhc_references/genome/mhc_genome_strand.fasta filter=lfs diff=lfs merge=lfs -text
+assets/mhc_references/gtf/mhc.gtf filter=lfs diff=lfs merge=lfs -text
+assets/mhc_references/transcriptome/alleles_with_unmatching_cds_exon_seq.csv filter=lfs diff=lfs merge=lfs -text
+assets/mhc_references/transcriptome/alleles_with_unmatching_cds_seq.csv filter=lfs diff=lfs merge=lfs -text
+assets/mhc_references/transcriptome/alleles_with_unmatching_gen_seq.csv filter=lfs diff=lfs merge=lfs -text
+assets/mhc_references/transcriptome/mhc_cds.fasta filter=lfs diff=lfs merge=lfs -text
