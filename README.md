@@ -63,8 +63,8 @@ project_dir=${PWD}
 ### 4. Download the MHC Hammer reference files
 The reference files to run MHC Hammer can be downloaded from Zenodo: https://zenodo.org/records/11059410
 This should download two folders, `kmer_files` and `mhc_references`. Save these folders in the assets folder:
-- `/assets/kmer_files/imgt_30mers.fa` - This file contains all 30mers created from the sequences in the IMGT database. For an overview of how this file was created see `docs/mhc_reference_files.md`
-- `/assets/mhc_references` - this folder contains the MHC reference files used in the MHC Hammer pipeline. For an overview of how these file were created see `docs/mhc_reference_files.md`
+- `assets/kmer_files/imgt_30mers.fa` - This file contains all 30mers created from the sequences in the IMGT database. For an overview of how this file was created see `docs/mhc_reference_files.md`
+- `assets/mhc_references` - this folder contains the MHC reference files used in the MHC Hammer pipeline. For an overview of how these file were created see `docs/mhc_reference_files.md`
 
 ### 5. HLA allele typing
 Every sample run through MHC Hammer requires HLA allele types. MHC Hammer provides three options for typing HLA alleles:
@@ -141,6 +141,8 @@ If you already have HLA allele types for your samples you can skip the HLA-HD st
 An example of the file format can be found here: https://github.com/McGranahanLab/mhc-hammer/blob/main/test/data/SIM001_hla_alleles.csv
 
 - run the pipeline with the `--run_hlahd false` flag.
+
+**Remember that the alleles input to MHC Hammer must be present in the MHC Hammer reference files in the `assets/mhc_references` folder.** You can get a list of alleles from the fasta file, e.g. `grep '^>' assets/mhc_references/mhc_genome.fasta`
 
 ### 6. Update the pipeline parameters and config files
 
