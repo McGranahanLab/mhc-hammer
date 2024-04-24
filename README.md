@@ -52,27 +52,33 @@ The following is an example inventory for a single patient with:
 | patient1 | sample_name1 |   tumour    | path/to/sample_name4.bam |       rnaseq    |        |        |   sample_name4   |
 | patient1 | sample_name4 |   normal    | path/to/sample_name5.bam |       rnaseq    |        |        |                  |
 
-### 3. Pull the preprocessing singularity image
-This singularity image contains git lfs, which is needed to download the large files in the `assets/kmer_files` and `assets/mhc_references` folders. 
-
+### 3. Clone this repo
 ```bash
-singularity pull --arch amd64 library://tpjones15/default/mhc_hammer_preprocessing:latest
-```
-
-### 4. Clone this repo
-```bash
-singularity exec -B ${PWD}:${PWD} mhc_hammer_preprocessing_latest.sif git lfs clone git@github.com:McGranahanLab/mhc-hammer.git
+singularity exec -B ${PWD}:${PWD} mhc_hammer_preprocessing_latest.sif git clone git@github.com:McGranahanLab/mhc-hammer.git
 mkdir mhc-hammer/singularity_images
-mv mhc_hammer_preprocessing_latest.sif mhc-hammer/singularity_images
 cd mhc-hammer
 project_dir=${PWD}
 ```
-### 5. Install HLA-HD 
-We use [HLA-HD](https://pubmed.ncbi.nlm.nih.gov/28419628/) within MHC Hammer to predict the HLA allele types of each sample. **We are unable to provide a singularity container for this tool.** Instead, we provide two methods for installing HLA-HD and its dependencies locally, before running the pipeline. [Alternatively, you can input your own HLA alleles to the MHC Hammer pipeline and skip the HLA-HD step.](#running-the-mhc-hammer-pipeline-with-hla-allele-predictions)
+
+### 4. Download the MHC Hammer reference files
+The reference files to run MHC Hammer can be downloaded from Zenodo: https://zenodo.org/records/11059410
+This should download two folders, `kmer_files` and `mhc_references`. Save these folders in the assets folder:
+- `/assets/kmer_files/imgt_30mers.fa` - This file contains all 30mers created from the sequences in the IMGT database. For an overview of how this file was created see `docs/mhc_reference_files.md`
+- `/assets/mhc_references` - this folder contains the MHC reference files used in the MHC Hammer pipeline. For an overview of how these file were created see `docs/mhc_reference_files.md`
+
+### 5. HLA allele typing
+Every sample run through MHC Hammer requires HLA allele types. MHC Hammer provides three options for typing HLA alleles:
+1. Install [HLA-HD](https://pubmed.ncbi.nlm.nih.gov/28419628/) locally. MHC Hammer will run the locally installed HLA-HD.
+2. Create a container containing HLA-HD. MHC Hammer will run HLA-HD using this container.
+3. Provide HLA allele types as an input to MHC Hammer, in this case MHC Hammer will  not run HLA-HD.
+
+**The HLA allele types predicted by HLA-HD (option 1 or 2) or input to MHC Hammer (option 3) must match the alleles in the MHC Hammer reference files**
+
+This means that if using HLA-HD within MHC Hammer (option 1 or 2) the reference version used by HLA-HD must be the same as the IMGT reference version used to create the MHC Hammer reference files. If HLA allele types are input to MHC Hammer, these allele types must be present in the MHC Hammer reference files. More information on this is prodived below.
 
 #### Option 1: Install HLA-HD and its dependencies locally (recommended)
 
-The setps are as follows:
+The steps are as follows:
 1. On the HLA-HD website fill in the [download request form](https://www.genome.med.kyoto-u.ac.jp/HLA-HD/download-request/) to get a download link for HLA-HD
 2. Move the downloaded hlahd.version.tar.gz file into the project bin directory.
    ```bash
@@ -102,7 +108,7 @@ The setps are as follows:
 
 #### Option 2: Create your own HLA-HD singularity container
 
-The steps are as follows:
+We are unable to provide a singularity container for HLA-HD tool. Instead, we have provided steps to create your own container:
 
 1. On the HLA-HD website fill in the [download request form](https://www.genome.med.kyoto-u.ac.jp/HLA-HD/download-request/) to get a download link for HLA-HD
 2. Edit the `assets/hlahd_container.def` file:
@@ -123,6 +129,17 @@ If you want to use a different version of the IMGT database with HLA-HD you can 
 sed -i 's,wget https://media.githubusercontent.com/media/ANHIG/IMGTHLA/Latest/hla.dat,wget https://media.githubusercontent.com/media/ANHIG/IMGTHLA/v3.55.0-alpha/hla.dat,' update.dictionary.sh
 ```
 Alternatively you can comment out this line to use HLA-HD with the most recent IMGT release. **Remember that the HLA-HD database version should match the version used to create the files in the `assets/mhc_references` folder.**
+
+#### Option 3: Input HLA alleles to MHC Hammer
+
+If you already have HLA allele types for your samples you can skip the HLA-HD step in the pipeline. To do this:
+- add a new column to the inventory called `hla_alleles_path` that contains  the path to a csv file listing the HLA alleles. The following is an example of how this csv file should be formatted:
+
+| A | hla_a_32_01_01_01 |   hla_a_03_01_01_01    | 
+| B | hla_b_57_01_01_01 |   hla_b_07_02_01_01    | 
+| C | hla_c_08_02_01_01 |   hla_c_07_02_01_01    | 
+
+- run the pipeline with the `--run_hlahd false` flag.
 
 ### 6. Update the pipeline parameters and config files
 
@@ -158,11 +175,6 @@ If you already have subsetted BAM files and flagstat output, you can input these
 - add a new column to the inventory called `library_size_path` that contains  the path to a text file with the library size for the sample. This can be calculated from the flagstat output. 
 - run the pipeline with the `--run_bam_subsetting false` flag.
 
-## Running the MHC Hammer pipeline with HLA allele predictions 
-If you already have HLA allele types for your samples you can skip the HLA-HD step in the pipeline. To do this:
-- add a new column to the inventory called `hla_alleles_path` that contains  the path to a text file listing the HLA alleles. The format of the file should match `test_data/SIM001_hla_alleles.csv`.
-- run the pipeline with the `--run_hlahd false` flag.
-
 ## MHC Hammer pipeline outputs
 By defult, the output is saved in the working directory in a folder called `mhc_hammer_results`. See `docs/mhc_hammer_outputs.md` for an overview of all outputs from MHC Hammer.
 
@@ -190,8 +202,6 @@ Files downloaded with the git repository
 - `mhc_coords_chr6.txt` - these genomic coordinates can be used when subsetting the bams. Any reads falling within these coordinates are included in the subsetted bams. 
 - `strand_info.txt` - contains a mapping between the HLA gene and the strand (forward="+" or reverse="-")
 - `transcriptome_placeholder.txt` - A placeholder so the pipeline will run with only WXS data.
-- `kmer_files/imgt_30mers.fa` - This file contains all 30mers created from the sequences in the IMGT database. For an overview of how this file was created see `docs/mhc_reference_files.md`
-- `mhc_references` - this folder contains the MHC reference files used in the MHC Hammer pipeline. For an overview of how these file were created see `docs/mhc_reference_files.md`
 
 ## Citations
 <!-- If you use  McGranahanLab/mhc_hammer for your analysis, please cite it using the following doi: [10.5281/zenodo.XXXXXX](https://doi.org/10.5281/zenodo.XXXXXX) -->

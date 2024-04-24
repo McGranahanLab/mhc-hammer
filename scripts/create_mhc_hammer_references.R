@@ -67,8 +67,7 @@ alleles_with_unmatching_cds_exon_seq <- c()
 alleles_with_unmatching_gen_seq <- c() 
 alleles_with_unmatching_cds_seq <- c()
 
-for(gene_to_run in c("HLA-A", "HLA-B", "HLA-C", "HLA-E", "HLA-F", "HLA-G")){
-# for(gene_to_run in unique(all_allele_list$gene)){
+for(gene_to_run in c("HLA-A", "HLA-B", "HLA-C")){
   
   cat("Processing ", gene_to_run, "\n")
   

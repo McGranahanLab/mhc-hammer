@@ -73,7 +73,7 @@ for(line_idx in 1:nrow(allele_index)){
   gene_line <- grep("gene=", ft_lines, value = TRUE)
   gene <- paste0(gsub('.*gene=\\\"(.*)\\\"', "\\1", gene_line), collapse = ",")
   
-  if(!gene %in% c("HLA-A", "HLA-B", "HLA-C", "HLA-E", "HLA-F", "HLA-G")){
+  if(!gene %in% c("HLA-A", "HLA-B", "HLA-C")){
     next
   }
   

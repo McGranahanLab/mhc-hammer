@@ -1,6 +1,6 @@
 # Creating the MHC reference files
 
-The reference files used by MHC Hammer are created from data downloaded from the IMGT database and avaliable in the assets folder of the MHC Hammer git repository. The instructions to recreate these files are below.
+The reference files used by MHC Hammer are created from sequence data downloaded from the IMGT database. The MHC Hammer reference files are avaliable in the assets folder of the git repository. The instructions to recreate these files are below.
 
 ### Clone this repo
 The scripts to create the MHC Hammer references are included in this repo.
@@ -23,7 +23,7 @@ mhc_hammer_preprocessing_sif="${project_dir}/singularity_images/mhc_hammer_prepr
 
 ### Download the IMGT data
 
-Download the IMGT data from github (https://github.com/ANHIG/IMGTHLA):
+Download the IMGT repository from github (https://github.com/ANHIG/IMGTHLA):
 ```bash
 cd ${project_dir}"/assets/"
 singularity exec -B ${project_dir}:${project_dir} $mhc_hammer_preprocessing_sif git clone https://github.com/ANHIG/IMGTHLA.git
@@ -46,7 +46,7 @@ singularity exec -B ${project_dir}:${project_dir} $mhc_hammer_preprocessing_sif 
     --save_dir ${project_dir}/assets/mhc_references \
     --functions_file ${project_dir}/scripts/mhc_reference_functions.R
 ```
-The script `convert_hla_dat.R` will convert the information in the `hla.dat` file to two csv files containing information taken from the `hla.dat` file:
+The script `convert_hla_dat.R` will convert the information in the `hla.dat` file to two csv files:
 - `all_allele_features.csv`. This contains the avaliable sequence information of different features (intron, exon, UTR) for each HLA allele. This includes the columns:
     - start - the start position of the feature.
     - end - the end position of the feature.
@@ -103,5 +103,8 @@ singularity exec -B ${project_dir}:${project_dir} $mhc_hammer_preprocessing_sif 
 
 singularity exec -B ${project_dir}:${project_dir} $mhc_hammer_preprocessing_sif jellyfish dump \
     ${project_dir}/assets/kmer_files/jellyfish_counts | grep -v '^>' > ${project_dir}/assets/kmer_files/imgt_30mers.fa
+
+rm ${project_dir}/assets/kmer_files/jellyfish_counts
+rm ${project_dir}/assets/kmer_files/all_fasta.fasta
 
 ```
