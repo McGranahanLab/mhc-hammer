@@ -133,13 +133,11 @@ Alternatively you can comment out this line to use HLA-HD with the most recent I
 #### Option 3: Input HLA alleles to MHC Hammer
 
 If you already have HLA allele types for your samples you can skip the HLA-HD step in the pipeline. To do this:
-- add a new column to the inventory called `hla_alleles_path` that contains  the path to a csv file listing the HLA alleles. The following is an example of how this csv file should be formatted:
-
-|   |   | |
-| :-: | :---------------: | :--------------------: | 
-| A   | hla_a_32_01_01_01 |   hla_a_03_01_01_01    | 
-| B   | hla_b_57_01_01_01 |   hla_b_07_02_01_01    | 
-| C   | hla_c_08_02_01_01 |   hla_c_07_02_01_01    | 
+- add a new column to the inventory called `hla_alleles_path` that contains  the path to a csv file listing the HLA alleles. This table should have three columns with no column names. The columns are:
+ -  Gene 
+ - Allele 1 type
+ - Allele 2 type
+ An example of the file format can be found here: https://github.com/McGranahanLab/mhc-hammer/blob/main/test/data/SIM001_hla_alleles.csv
 
 - run the pipeline with the `--run_hlahd false` flag.
 
