@@ -54,7 +54,7 @@ The following is an example inventory for a single patient with:
 
 ### 3. Clone this repo
 ```bash
-singularity exec -B ${PWD}:${PWD} mhc_hammer_preprocessing_latest.sif git clone git@github.com:McGranahanLab/mhc-hammer.git
+git clone git@github.com:McGranahanLab/mhc-hammer.git
 mkdir mhc-hammer/singularity_images
 cd mhc-hammer
 project_dir=${PWD}
