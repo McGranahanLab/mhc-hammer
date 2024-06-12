@@ -100,11 +100,11 @@ The steps are as follows:
 
    If you want to use a different version of the IMGT database with HLA-HD you can change the following line in `scripts/install_hlahd.sh` to your choosen version of the IMGT database:
    ```
-   $singularity_command sed -i 's,wget https://media.githubusercontent.com/media/ANHIG/IMGTHLA/Latest/hla.dat,wget https://media.githubusercontent.com/media/ANHIG/IMGTHLA/v3.55.0-alpha/hla.dat,' update.dictionary.sh
+   $singularity_command sed -i 's,wget https://media.githubusercontent.com/media/ANHIG/IMGTHLA/(.*)/hla.dat,wget https://media.githubusercontent.com/media/ANHIG/IMGTHLA/v3.38.0-alpha/hla.dat,' update.dictionary.sh
    ```
    Alternatively you can comment out this line to use HLA-HD with the most recent IMGT release. **Remember that the HLA-HD database version should match the version used to create the files in the `assets/mhc_references` folder.**
 
-4. When running the pipeline ensure you run with ```--local_hlahd_install true```
+4. When running the pipeline ensure you run with ```--hlahd_local_install true```
 
 #### Option 2: Create your own HLA-HD singularity container
 
