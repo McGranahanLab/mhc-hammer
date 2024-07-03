@@ -50,7 +50,7 @@ workflow INPUT_CHECK {
         hla_allele_files = hla_alleles_to_check
                 .map { patient_id, hla_alleles -> tuple(hla_alleles) }
                 .collect()
-                .flatten()
+              
 
         CHECK_HLA_TYPE_INPUT ( mhc_fasta_ch, hla_allele_files, SAMPLESHEET_CHECK.out.csv )
 

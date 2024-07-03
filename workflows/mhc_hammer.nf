@@ -16,7 +16,7 @@ if (params.input) { ch_input = file(params.input) } else { exit 1, 'Input sample
 
 // Stage placeholder files to be used as an optional input where required
 contigs_placeholder = file("${projectDir}/assets/contigs_placeholder.txt", checkIfExists: true)
-transcriptome_placeholder = file("${projectDir}/assets/transcriptome_placeholder.txt", checkIfExists: true)
+// transcriptome_placeholder = file("${projectDir}/assets/transcriptome_placeholder.txt", checkIfExists: true)
 
 // Check if mhc_kmer file is provided if params.fish_reads = true
 if (params.kmer_file) { 
@@ -65,14 +65,11 @@ if (params.mhc_gtf) {
     if (mhc_gtf_ch.isEmpty()) {exit 1, "File provided with --mhc_gtf is empty: ${mhc_gtf_ch.getName()}!"} 
 }
 
-// Check mhc transcriptome fasta if running rna analysis
-// Stage as placeholder file if not running rna analysis
-if (params.run_rna_analysis && params.mhc_transcriptome_fasta) { 
+// Check mhc transcriptome fasta file
+if (params.mhc_transcriptome_fasta) { 
      mhc_transcriptome_fasta_ch = file(params.mhc_transcriptome_fasta, checkIfExists: true)
     if (mhc_transcriptome_fasta_ch.isEmpty()) {exit 1, "File provided with --mhc_fasta is empty: ${mhc_transcriptome_fasta_ch.getName()}!"} 
-} else {
-    mhc_transcriptome_fasta_ch = transcriptome_placeholder
-}
+} 
 
 if (params.codon_table) { 
      codon_table_ch = file(params.codon_table, checkIfExists: true)
@@ -105,8 +102,9 @@ include { RNA_ANALYSIS as NOVOALIGN_RNA_ANALYSIS;
 
 include { HLAHD; HLAHD_LOCAL } from '../modules/local/run_hlahd'
 include { GENERATE_REFERENCES } from '../modules/local/generate_references'
-include { CREATE_ALTERNATIVE_SPLICING_COHORT_TABLE; CREATE_LIBRARY_SIZE_TABLE;
-CREATE_MOSDEPTH_COHORT_TABLE; CREATE_MHC_HAMMER_TABLE } from '../modules/local/make_overview_table'
+include { CREATE_TUMOUR_NORMAL_SPLICING_COHORT_TABLE; CREATE_LIBRARY_SIZE_TABLE;
+        CREATE_MOSDEPTH_COHORT_TABLE; CREATE_MHC_HAMMER_TABLE; 
+        CREATE_KNOWN_SPLICING_COHORT_TABLE; CREATE_NOVEL_SPLICING_COHORT_TABLE } from '../modules/local/make_overview_table'
 
 /*
 ========================================================================================
@@ -134,6 +132,11 @@ workflow MHC_HAMMER {
 
     ch_versions = Channel.empty()
 
+    // Define empty channels here so the RNA analysis can be run independently of the DNA analysis
+    cohort_mosdepth_input_ch = Channel.empty()
+    rna_all_snps_ch = Channel.empty()
+    rna_bam_read_count_ch = Channel.empty()
+
     //
     // SUBWORKFLOW: Read in samplesheet, validate and stage input files
     //
@@ -143,7 +146,7 @@ workflow MHC_HAMMER {
     // Add software used in INPUT_CHECK
     ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
  
-    // These will be used to prevent pipeline stalling
+    // These channels will be used to prevent pipeline stalling
     tumour_wxs_sample_count_ch = INPUT_CHECK.out.tumour_wxs_sample_count 
 
     rna_sample_count_ch = INPUT_CHECK.out.rna_sample_count
@@ -204,7 +207,10 @@ workflow MHC_HAMMER {
     // MODULE: Run HLAHD on WXS normal sample
     //
 
-    if ( params.run_hlahd) {
+    // only run the rest of the pipeline if the run_preprocessing_only flag is false
+    if ( !params.run_preprocessing_only ) {
+
+        if ( params.run_hlahd) {
 
         if ( params.hlahd_local_install ) {
             HLAHD_LOCAL ( hlahd_input_ch,  mhc_gtf_ch )
@@ -282,19 +288,17 @@ workflow MHC_HAMMER {
     ch_versions = ch_versions.mix(DNA_ANALYSIS.out.versions)
 
     // SUBWORKFLOW: detect HLA allele mutations
-    // DETECT_MUTATIONS (
-    //     GENERATE_DNA_BAMS.out.hla_allele_bams_ch,
-    //     GENERATE_DNA_BAMS.out.passed_hla_alleles_ch,
-    //     GENERATE_REFERENCES.out.mutation_calling_reference,
-    //     tumour_wxs_sample_count_ch,
-    //     germline_sample_count_ch,
-    //     gl_samples,
-    //     INPUT_CHECK.out.checked_inventory
-    // )
+    DETECT_MUTATIONS (
+        GENERATE_DNA_NOVOALIGN_BAMS.out.hla_allele_bams_ch,
+        GENERATE_DNA_NOVOALIGN_BAMS.out.passed_heterozygous_hla_alleles_ch,
+        GENERATE_REFERENCES.out.mutation_calling_reference,
+        tumour_wxs_sample_count_ch,
+        germline_sample_count_ch,
+        gl_samples,
+        INPUT_CHECK.out.checked_inventory
+    )
 
-    // ch_versions = ch_versions.mix(DETECT_MUTATIONS.out.versions)
-
-    // rna_output_ch = Channel.empty()
+    ch_versions = ch_versions.mix(DETECT_MUTATIONS.out.versions)
 
     if ( params.run_rna_analysis ) {
 
@@ -329,6 +333,9 @@ workflow MHC_HAMMER {
 
         ch_versions = ch_versions.mix(NOVOALIGN_RNA_ANALYSIS.out.versions)
 
+        // overwrite rna_all_snps_ch with the output from NOVOALIGN_RNA_ANALYSIS when the rnaseq analysis is run
+        rna_all_snps_ch = NOVOALIGN_RNA_ANALYSIS.out.rna_all_snps_output_ch
+
         GENERATE_RNA_STAR_BAMS (
             GENERATE_REFERENCES.out.mosdepth_reference,
             rna_bams_ch,
@@ -350,48 +357,68 @@ workflow MHC_HAMMER {
             "star"
         )
 
-    }
+        // updates the mosdepth cohort channel only if RNA samples are being run
+        cohort_mosdepth_input_ch = cohort_mosdepth_input_ch
+            .mix(GENERATE_RNA_STAR_BAMS.out.mosdepth_ch)
+            .mix(GENERATE_RNA_NOVOALIGN_BAMS.out.mosdepth_ch)
 
-    if ( params.run_alt_splicing_analysis ) {
+        // overwrite rna_bam_read_count_ch with the output from GENERATE_RNA_NOVOALIGN_BAMS when the rnaseq analysis is run
+        rna_bam_read_count_ch = GENERATE_RNA_NOVOALIGN_BAMS.out.hla_bam_read_count_ch
 
-        // SUBWORKFLOW: Generate STAR aligned bams to detect exon skipping and intron retention
+        if ( params.run_alt_splicing_analysis ) {
 
-        ALT_SPLICING ( 
-            GENERATE_RNA_STAR_BAMS.out.splice_junction_ch,
-            GENERATE_REFERENCES.out.star_input,
-            codon_table_ch
-        )
+            // SUBWORKFLOW: Generate STAR aligned bams to detect exon skipping and intron retention
 
-        // Collate alternative splicing output
+            ALT_SPLICING ( 
+                GENERATE_RNA_STAR_BAMS.out.splice_junction_ch,
+                GENERATE_REFERENCES.out.star_input,
+                codon_table_ch
+            )
 
-        cohort_alternative_splicing_input_ch = ALT_SPLICING.out.tumour_normal_sjs_ch
-                .mix(ALT_SPLICING.out.novel_sjs_ch)
-                .mix(ALT_SPLICING.out.known_sjs_ch)
-                .flatten()
-                .collect()
-                .map{ csvs ->
-                    sorted_csvs = csvs.sort()
-                    unique_csvs = sorted_csvs.unique { it.toString().tokenize('/').last() }
-                    tuple(unique_csvs)
-                    }
+            // Collate known splicing cohort table
+            cohort_known_splicing_input_ch = ALT_SPLICING.out.known_sjs_ch.collect()
+            cohort_known_splicing_input_file = cohort_known_splicing_input_ch
+                    .flatten()
+                    .map { it.getName() }
+                    .collectFile(name: 'input_csvs.txt', newLine: true)
+            
+            CREATE_KNOWN_SPLICING_COHORT_TABLE(
+                cohort_known_splicing_input_ch,
+                INPUT_CHECK.out.checked_inventory,
+                cohort_known_splicing_input_file
+            )    
 
-        cohort_alternative_splicing_input_text_file = cohort_alternative_splicing_input_ch
-                .flatten()
-                .map { it.getName() }
-                .collectFile(name: 'input_csvs.txt', newLine: true)
+            // Collate novel splicing cohort table
+            cohort_novel_splicing_input_ch = ALT_SPLICING.out.novel_sjs_ch.collect()
+            cohort_novel_splicing_input_file = cohort_novel_splicing_input_ch
+                    .flatten()
+                    .map { it.getName() }
+                    .collectFile(name: 'input_csvs.txt', newLine: true)
+            CREATE_NOVEL_SPLICING_COHORT_TABLE(
+                cohort_novel_splicing_input_ch,
+                INPUT_CHECK.out.checked_inventory,
+                cohort_novel_splicing_input_file
+            )           
 
-        CREATE_ALTERNATIVE_SPLICING_COHORT_TABLE(
-            cohort_alternative_splicing_input_ch,
-            INPUT_CHECK.out.checked_inventory,
-            cohort_alternative_splicing_input_text_file
-        )
+            // Collate tumour/normal enrichment splicing cohort table
+            // ALT_SPLICING.out.tumour_normal_sjs_ch.first().view()
+            cohort_tumour_normal_splicing_input_ch = ALT_SPLICING.out.tumour_normal_sjs_ch.collect()
+            cohort_tumour_normal_splicing_input_file = cohort_tumour_normal_splicing_input_ch
+                    .flatten()
+                    .map { it.getName() }
+                    .collectFile(name: 'input_csvs.txt', newLine: true)
+            CREATE_TUMOUR_NORMAL_SPLICING_COHORT_TABLE(
+                cohort_tumour_normal_splicing_input_ch,
+                INPUT_CHECK.out.checked_inventory,
+                cohort_tumour_normal_splicing_input_file
+            )           
 
-        ch_versions = ch_versions.mix(ALT_SPLICING.out.versions)
+            ch_versions = ch_versions.mix(ALT_SPLICING.out.versions)
+        }
     }
     
     // Collate mosdepth output
-   cohort_mosdepth_input_ch = GENERATE_RNA_STAR_BAMS.out.mosdepth_ch
-            .mix(GENERATE_RNA_NOVOALIGN_BAMS.out.mosdepth_ch)
+   cohort_mosdepth_input_ch = cohort_mosdepth_input_ch
             .mix(GENERATE_DNA_NOVOALIGN_BAMS.out.mosdepth_ch)
             .flatten()
             .collect()
@@ -439,6 +466,9 @@ workflow MHC_HAMMER {
 
     }
     
+    // create cohort mutations table
+        
+
     // collate overview table
     genome_allele_tables_ch = GENERATE_REFERENCES.out.genome_allele_tables
             .map{patient_id, genome_allele_tables -> tuple(genome_allele_tables)}
@@ -451,10 +481,10 @@ workflow MHC_HAMMER {
     rna_library_size_for_output = rna_library_size_ch
             .map{sample_name, library_size_path -> tuple(library_size_path)}            
 
-    allele_table_input_ch = GENERATE_RNA_NOVOALIGN_BAMS.out.hla_bam_read_count_ch
+    allele_table_input_ch = rna_bam_read_count_ch
             .mix(GENERATE_DNA_NOVOALIGN_BAMS.out.hla_bam_read_count_ch)
             .mix(DNA_ANALYSIS.out.dna_all_snps_output_ch)
-            .mix(NOVOALIGN_RNA_ANALYSIS.out.rna_all_snps_output_ch)
+            .mix(rna_all_snps_ch)
             .mix(genome_allele_tables_ch)
             .mix(transcriptome_allele_tables_ch)
             .mix(rna_library_size_for_output)
@@ -493,9 +523,12 @@ workflow MHC_HAMMER {
         params.min_depth
     )
 
-    CUSTOM_DUMPSOFTWAREVERSIONS (
-        ch_versions.unique().collectFile(name: 'collated_versions.yml')
-    )
+    }
+    
+
+    // CUSTOM_DUMPSOFTWAREVERSIONS (
+    //     ch_versions.unique().collectFile(name: 'collated_versions.yml')
+    // )
 
 }
 
