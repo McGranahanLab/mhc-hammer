@@ -1,6 +1,7 @@
-library(data.table)
-library(argparse)
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(argparse))
 
+########## code ###########
 parser <- ArgumentParser()
 
 parser$add_argument('--tumour_novel_sjs_path',  nargs=1,
@@ -24,6 +25,7 @@ tumour_known_sjs_path <- args$tumour_known_sjs_path
 normal_novel_sjs_path <- args$normal_novel_sjs_path
 normal_known_sjs_path <- args$normal_known_sjs_path
 sample_name <- args$sample_name
+
 scripts_dir <- args$scripts_dir
 source(paste0(scripts_dir, "/alt_splicing_functions.R"))
 
@@ -32,57 +34,41 @@ cat("tumour_known_sjs_path = ", tumour_known_sjs_path, "\n")
 cat("normal_novel_sjs_path = ", normal_novel_sjs_path, "\n")
 cat("normal_known_sjs_path = ", normal_known_sjs_path, "\n")
 
-# tumour_novel_sjs_path <- "/camp/project/proj-tracerx-lung/tctProjects/putticc/mhc_pipeline_mutations/LOHHLA/mhc_hammer_results_tracerx/LTX0038/hla_alternative_splicing/LTX0038_SU_T1-R2--32a64edcc47a_novel_splice_junctions.csv"
-# tumour_known_sjs_path <- "/camp/project/proj-tracerx-lung/tctProjects/putticc/mhc_pipeline_mutations/LOHHLA/mhc_hammer_results_tracerx/LTX0038/hla_alternative_splicing/LTX0038_SU_T1-R2--32a64edcc47a_known_splice_junctions.csv"
-# 
-# normal_novel_sjs_path <- "/camp/project/proj-tracerx-lung/tctProjects/putticc/mhc_pipeline_mutations/LOHHLA/mhc_hammer_results_tracerx/LTX0038/hla_alternative_splicing/LTX0038_SU_N01_novel_splice_junctions.csv"
-# normal_known_sjs_path <- "/camp/project/proj-tracerx-lung/tctProjects/putticc/mhc_pipeline_mutations/LOHHLA/mhc_hammer_results_tracerx/LTX0038/hla_alternative_splicing/LTX0038_SU_N01_known_splice_junctions.csv"
-
 # read in the splice junction tbales
 tumour_novel_sjs <- fread(tumour_novel_sjs_path)
 tumour_known_sjs <- fread(tumour_known_sjs_path)
 normal_novel_sjs <- fread(normal_novel_sjs_path)
 normal_known_sjs <- fread(normal_known_sjs_path)
 
-tumour_sample_name <- unique(tumour_novel_sjs$sample_name)
-normal_sample_name <- unique(normal_novel_sjs$sample_name)
-
-tumour_novel_sjs <- tumour_novel_sjs[,c("allele", "gene", "start", "end", "n_unique_reads", "canonical_sj_read_count",
-                                        "intron_n_reads", "novel_transcript_proportion", "total_read_count",
-                                        "novel_sj_cat", "canonical_sj_names", "sj_type",
-                                        "framshift", "premature_stop", "exon_intron_name")]
-
-normal_novel_sjs <- normal_novel_sjs[,c("allele", "gene", "start", "end", "n_unique_reads", "canonical_sj_read_count",
-                                        "intron_n_reads", "novel_transcript_proportion", "total_read_count",
-                                        "novel_sj_cat", "canonical_sj_names", "sj_type",
-                                        "framshift", "premature_stop", "exon_intron_name")]
-
 setnames(tumour_novel_sjs,
-         old = c("n_unique_reads", "canonical_sj_read_count",
+         old = c("n_unique_reads", "n_multtimap_reads", "max_overhang", "canonical_sj_read_count",
                  "intron_n_reads", "novel_transcript_proportion", "total_read_count"),
-         new = c("tumour_n_unique_reads", "tumour_canonical_sj_read_count", 
-                 "tumour_intron_n_reads", "tumour_novel_transcript_proportion", "tumour_total_read_count"))
+         new = c("tumour_n_unique_reads", "tumour_n_multtimap_reads", "tumour_max_overhang", 
+                 "tumour_canonical_sj_read_count", "tumour_intron_n_reads", 
+                 "tumour_novel_transcript_proportion", "tumour_total_read_count"))
 
 setnames(normal_novel_sjs,
-         old = c("n_unique_reads", "canonical_sj_read_count",
+         old = c("n_unique_reads", "n_multtimap_reads", "max_overhang", "canonical_sj_read_count",
                  "intron_n_reads", "novel_transcript_proportion", "total_read_count"),
-         new = c("normal_n_unique_reads", "normal_canonical_sj_read_count", 
-                 "normal_intron_n_reads", "normal_novel_transcript_proportion", "normal_total_read_count"))
+         new = c("normal_n_unique_reads", "normal_n_multtimap_reads", "normal_max_overhang", 
+                 "normal_canonical_sj_read_count", "normal_intron_n_reads", 
+                 "normal_novel_transcript_proportion", "normal_total_read_count"))
 
 tumour_normal_sjs <- merge(tumour_novel_sjs, normal_novel_sjs,
-                           by = c("allele", "gene", "start", "end", "novel_sj_cat", "sj_type",
-                                  "canonical_sj_names", "framshift", "premature_stop", "exon_intron_name"), 
-                           all = TRUE)
-
-# if not in tumour or not in normal then not detected, and n_unique reads is zero
-if(nrow(tumour_normal_sjs[is.na(normal_n_unique_reads) & is.na(tumour_n_unique_reads)]) > 0){
-  stop("Why are they both zero?")
-}
-
-tumour_normal_sjs[is.na(normal_n_unique_reads), normal_n_unique_reads := 0]
-tumour_normal_sjs[is.na(tumour_n_unique_reads), tumour_n_unique_reads := 0]
-tumour_normal_sjs[is.na(normal_novel_transcript_proportion), normal_novel_transcript_proportion := 0]
-tumour_normal_sjs[is.na(tumour_novel_transcript_proportion), tumour_novel_transcript_proportion := 0]
+                           by = c("allele", "start", "end", "strand", "intron_motif",
+                                  "annotation", "gene", "splice_site_type", "sj_in_feature",
+                                  "sj_in_feature_name", "full_exon_skip", "n_exon_skipped",
+                                  "exon_skipped_names", "end_exon_skip", "end_exon_skipped_name",
+                                  "end_exon_skipped_start", "end_exon_skipped_end", "start_exon_skip",
+                                  "start_exon_skipped_name", "start_exon_skipped_start", "start_exon_skipped_end",
+                                  "start_intron_retained", "start_intron_retained_name",
+                                  "start_intron_retained_start", "start_intron_retained_end",
+                                  "end_intron_retained", "end_intron_retained_name",
+                                  "end_intron_retained_start", "end_intron_retained_end",
+                                  "novel_sj_cat", "premature_stop", "original_seq", "new_seq",
+                                  "original_amino_acid", "new_amino_acid",
+                                  "protein_lev_dist", "canonical_sj_names", "sj_type",
+                                  "exon_intron_name", "framshift"), all = TRUE)
 
 # for splice junctions that were only called in the tumour, add the canonical read count in the normal
 # (and the other way around)
@@ -308,9 +294,6 @@ for(line_idx in 1:nrow(tumour_normal_sjs)){
   tumour_normal_sjs[line_idx, fisher_ci_upper := as.numeric(ft$conf.int[2])]
   
 }
-
-tumour_normal_sjs[,tumour_sample_name := tumour_sample_name]
-tumour_normal_sjs[,normal_sample_name := normal_sample_name]
 
 fwrite(tumour_normal_sjs, file = paste0(sample_name, "_tumour_normal_splice_junctions.csv"))
 

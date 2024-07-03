@@ -14,9 +14,9 @@ process DETECT_ALT_SPLICING {
     output:
     tuple val(meta), \
         path("${meta.sample_id}_novel_splice_junctions.csv"), \
-        path("${meta.sample_id}_known_splice_junctions.csv"), emit: sjs_table
-    path ("*_novel_splice_junctions.csv"), emit: novel_splice_junctions_tables
-    path ("*_known_splice_junctions.csv"), emit: known_splice_junctions_tables
+        path("${meta.sample_id}_known_splice_junctions.csv"), emit: sjs_table, optional:true
+    path ("*_novel_splice_junctions.csv"), emit: novel_splice_junctions_tables, optional:true
+    path ("*_known_splice_junctions.csv"), emit: known_splice_junctions_tables, optional:true
     path ("versions.yml"), emit: versions
 
     script: 
@@ -66,7 +66,7 @@ process TUMOUR_NORMAL_ALT_SPLICING_ENRICHMENT {
     script: 
     """
 
-    # Run Rscript to detect novel splice junctions
+    # Run Rscript to detect tumour normal enrichment
     Rscript ${projectDir}/bin/splice_junction_tumour_normal_enrichment.R \
         --tumour_novel_sjs_path ${tumour_novel_sjs} \
         --tumour_known_sjs_path ${tumour_known_sjs} \

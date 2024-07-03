@@ -35,48 +35,45 @@ process GENERATE_REFERENCES {
 
     path ("versions.yml")                                                      , emit: versions
     
-    run_rna_analysis = "${params.run_rna_analysis}"
     script: 
     """
-    if [ "${params.run_rna_analysis}" == "true" ]; then
-        # Run Rscript to generate transcriptome allele mismatches
-        Rscript --vanilla ${baseDir}/bin/allele_mismatch.R \
-        --genome_or_transcriptome transcriptome \
-        --patient_id ${patient_id} \
-        --patient_hla_alleles ${genotype} \
-        --mhc_fasta ${mhc_transcriptome_fasta}
+   
+    # Run Rscript to generate transcriptome allele mismatches
+    Rscript --vanilla ${baseDir}/bin/allele_mismatch.R \
+    --genome_or_transcriptome transcriptome \
+    --patient_id ${patient_id} \
+    --patient_hla_alleles ${genotype} \
+    --mhc_fasta ${mhc_transcriptome_fasta}
 
-        echo "Creating personalised transcriptome reference"
-        # generate personalised transcriptome fasta
-        Rscript --vanilla ${baseDir}/bin/generate_personalised_transcriptome_fasta.R \
-        --patient_id ${patient_id} \
-        --patient_hla_alleles ${patient_id}_transcriptome_allele_table.csv \
-        --mhc_fasta_path ${mhc_transcriptome_fasta}
+    echo "Creating personalised transcriptome reference"
+    # generate personalised transcriptome fasta
+    Rscript --vanilla ${baseDir}/bin/generate_personalised_transcriptome_fasta.R \
+    --patient_id ${patient_id} \
+    --patient_hla_alleles ${patient_id}_transcriptome_allele_table.csv \
+    --mhc_fasta_path ${mhc_transcriptome_fasta}
 
-        echo "Indexing transcriptome reference"
-        # index reference
-        samtools faidx ${patient_id}_mhc_transcriptome_reference.fa
-        echo "Done"
+    echo "Indexing transcriptome reference"
+    # index reference
+    samtools faidx ${patient_id}_mhc_transcriptome_reference.fa
+    echo "Done"
 
-        echo "Creating transcriptome sequence dictionary"
-        # create reference dictionary
-        picard CreateSequenceDictionary -R ${patient_id}_mhc_transcriptome_reference.fa
-        echo "Done"
+    echo "Creating transcriptome sequence dictionary"
+    # create reference dictionary
+    picard CreateSequenceDictionary -R ${patient_id}_mhc_transcriptome_reference.fa
+    echo "Done"
 
-        echo "Creating transcriptome novoindex"
-        # create novoalign index
-        novoindex ${patient_id}.mhc_transcriptome_fasta.nix ${patient_id}_mhc_transcriptome_reference.fa
-        echo "Done"
+    echo "Creating transcriptome novoindex"
+    # create novoalign index
+    novoindex ${patient_id}.mhc_transcriptome_fasta.nix ${patient_id}_mhc_transcriptome_reference.fa
+    echo "Done"
 
-        echo "Creating bed file"
-        # create bed file for mosdepth 
-        Rscript --vanilla ${baseDir}/bin/make_bed_file.R \
-        --patient_hla_alleles ${genotype} \
-        --patient_id ${patient_id} \
-        --mhc_gtf ${mhc_gtf}
-        echo "Done"
- 
-    fi
+    echo "Creating bed file"
+    # create bed file for mosdepth 
+    Rscript --vanilla ${baseDir}/bin/make_bed_file.R \
+    --patient_hla_alleles ${genotype} \
+    --patient_id ${patient_id} \
+    --mhc_gtf ${mhc_gtf}
+    echo "Done"
 
     # Run Rscript to generate genome allele mismatches
     Rscript --vanilla ${baseDir}/bin/allele_mismatch.R \

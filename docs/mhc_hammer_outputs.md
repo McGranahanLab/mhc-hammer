@@ -100,11 +100,6 @@ QC filters
 
 ***
 
-**`cohort_mhc_hammer_allele_table.csv`**
-This table contains the same information as `cohort_mhc_hammer_gene_table.csv` but with a single line per allele and sample.
-
-***
-
 **`novel_splicing_events.csv`**
 
 This contains the novel splicing events, i.e. splicing events that are not defined in the input `mhc.gtf` file. Each row represents a novel splice junction detected in a sample. Columns include:

@@ -13,7 +13,6 @@ process CREATE_MHC_HAMMER_TABLE {
 
     output:
     path "cohort_mhc_hammer_gene_table.csv", emit: cohort_mhc_hammer_gene_table
-    path "cohort_mhc_hammer_allele_table.csv", emit: cohort_mhc_hammer_allele_table
     path "versions.yml", emit: versions
 
     // when:
@@ -122,7 +121,7 @@ process CREATE_LIBRARY_SIZE_TABLE {
     """
 }
 
-process CREATE_ALTERNATIVE_SPLICING_COHORT_TABLE {
+process CREATE_TUMOUR_NORMAL_SPLICING_COHORT_TABLE {
 
     container "library://tpjones15/mhchammer/mhchammer_core:latest"
 
@@ -134,13 +133,82 @@ process CREATE_ALTERNATIVE_SPLICING_COHORT_TABLE {
     path  input_csvs_file
 
     output:
-    path "novel_splicing_events.csv", emit: novel_splicing_events
-    path "known_splicing_events.csv", emit: known_splicing_events
+    path "tumour_normal_splicing_events.csv", emit: novel_splicing_events, optional: true
     path "versions.yml", emit: versions
 
     script:
     """
-    Rscript ${projectDir}/bin/make_cohort_alternative_splicing_table.R \
+    Rscript ${projectDir}/bin/make_cohort_tumour_normal_splicing_table.R \
+    --inventory_path ${inventory} \
+    --csv_tables_path ${input_csvs_file} 
+
+    # get R version and data.table version
+    R_VERSION=\$(Rscript -e "cat(as.character(getRversion()))")
+    DT_VERSION=\$(Rscript -e "cat(paste(packageVersion('data.table'), collapse = ''))")
+    AP_VERSION=\$(Rscript -e "cat(paste(packageVersion('argparse'), collapse = ''))")
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        R: \${R_VERSION}
+        data.table: \${DT_VERSION}
+        argparse: \${AP_VERSION}
+    END_VERSIONS
+    """
+}
+
+process CREATE_KNOWN_SPLICING_COHORT_TABLE {
+
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
+
+    label 'process_single'
+
+    input: 
+    path  known_splicing_tables 
+    path  inventory
+    path  input_csvs_file
+
+    output:
+    path "known_splicing_events.csv", emit: known_splicing_events, optional: true
+    path "versions.yml", emit: versions
+
+    script:
+    """
+    Rscript ${projectDir}/bin/make_cohort_known_alternative_splicing_table.R \
+    --inventory_path ${inventory} \
+    --csv_tables_path ${input_csvs_file} 
+
+    # get R version and data.table version
+    R_VERSION=\$(Rscript -e "cat(as.character(getRversion()))")
+    DT_VERSION=\$(Rscript -e "cat(paste(packageVersion('data.table'), collapse = ''))")
+    AP_VERSION=\$(Rscript -e "cat(paste(packageVersion('argparse'), collapse = ''))")
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        R: \${R_VERSION}
+        data.table: \${DT_VERSION}
+        argparse: \${AP_VERSION}
+    END_VERSIONS
+    """
+}
+
+process CREATE_NOVEL_SPLICING_COHORT_TABLE {
+
+    container "library://tpjones15/mhchammer/mhchammer_core:latest"
+
+    label 'process_single'
+
+    input: 
+    path  novel_splicing_tables 
+    path  inventory
+    path  input_csvs_file
+
+    output:
+    path "novel_splicing_events.csv", emit: novel_splicing_events, optional: true
+    path "versions.yml", emit: versions
+
+    script:
+    """
+    Rscript ${projectDir}/bin/make_cohort_novel_alternative_splicing_table.R \
     --inventory_path ${inventory} \
     --csv_tables_path ${input_csvs_file} 
 

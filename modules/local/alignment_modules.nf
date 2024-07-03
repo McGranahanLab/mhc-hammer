@@ -331,7 +331,6 @@ process STAR_ALIGN_SECOND_PASS {
 
     label 'process_low'
     label 'process_long'
-    label 'error_retry'
 
     input:
     tuple val(meta), path(bam), path(star_reference), path(fasta), path(gtf), val(genome_size), val(overhang), path(kmer)
