@@ -34,27 +34,41 @@ wxs_novoalign_mosdepth_tables <- output_tables[table_type == "wxs_novoalign"]
 
 # rna star
 cohort_rnaseq_star_mosdepth_tables <- data.table()
-for(line_idx in 1:nrow(rnaseq_star_mosdepth_tables)){
+if(nrow(rnaseq_star_mosdepth_tables) > 0){
+  for(line_idx in 1:nrow(rnaseq_star_mosdepth_tables)){
+    
+    x <- fread(rnaseq_star_mosdepth_tables[line_idx]$csv_path)
+    setnames(x, c("allele", "start", "stop", "feature_name", "depth"))
+    
+    x[,sample_name := gsub(".rnaseq.star.mosdepth.bed", "", basename(rnaseq_star_mosdepth_tables[line_idx]$csv_path))]
+    
+    cohort_rnaseq_star_mosdepth_tables <- rbindlist(list(cohort_rnaseq_star_mosdepth_tables, x))
+    
+  }
   
-  x <- fread(rnaseq_star_mosdepth_tables[line_idx]$csv_path)
-  setnames(x, c("allele", "start", "stop", "feature_name", "depth"))
-  
-  x[,sample_name := gsub(".rnaseq.star.mosdepth.bed", "", basename(rnaseq_star_mosdepth_tables[line_idx]$csv_path))]
-  
-  cohort_rnaseq_star_mosdepth_tables <- rbindlist(list(cohort_rnaseq_star_mosdepth_tables, x))
+  setnames(cohort_rnaseq_star_mosdepth_tables, "stop", "end")
+  setcolorder(cohort_rnaseq_star_mosdepth_tables, c("sample_name", "allele", "start", "end", "feature_name", "depth"))
+  fwrite(cohort_rnaseq_star_mosdepth_tables, "mosdepth_rnaseq_star.csv")
   
 }
 
 # rna novoalign
 cohort_rnaseq_novoalign_mosdepth_tables <- data.table()
-for(line_idx in 1:nrow(rnaseq_novoalign_mosdepth_tables)){
+if(nrow(rnaseq_novoalign_mosdepth_tables) > 0){
+  for(line_idx in 1:nrow(rnaseq_novoalign_mosdepth_tables)){
+    
+    x <- fread(rnaseq_novoalign_mosdepth_tables[line_idx]$csv_path)
+    setnames(x, c("allele", "start", "stop", "feature_name", "depth"))
+    
+    x[,sample_name := gsub(".rnaseq.novoalign.mosdepth.bed", "", basename(rnaseq_novoalign_mosdepth_tables[line_idx]$csv_path))]
+    
+    cohort_rnaseq_novoalign_mosdepth_tables <- rbindlist(list(cohort_rnaseq_novoalign_mosdepth_tables, x))
+    
+  }
   
-  x <- fread(rnaseq_novoalign_mosdepth_tables[line_idx]$csv_path)
-  setnames(x, c("allele", "start", "stop", "feature_name", "depth"))
-  
-  x[,sample_name := gsub(".rnaseq.novoalign.mosdepth.bed", "", basename(rnaseq_novoalign_mosdepth_tables[line_idx]$csv_path))]
-  
-  cohort_rnaseq_novoalign_mosdepth_tables <- rbindlist(list(cohort_rnaseq_novoalign_mosdepth_tables, x))
+  setnames(cohort_rnaseq_novoalign_mosdepth_tables, "stop", "end")
+  setcolorder(cohort_rnaseq_novoalign_mosdepth_tables, c("sample_name", "allele", "start", "end", "feature_name", "depth"))
+  fwrite(cohort_rnaseq_novoalign_mosdepth_tables, "mosdepth_novoalign_rnaseq_star.csv")
   
 }
 
@@ -71,14 +85,8 @@ for(line_idx in 1:nrow(wxs_novoalign_mosdepth_tables)){
   
 }
 
-setnames(cohort_rnaseq_star_mosdepth_tables, "stop", "end")
-setnames(cohort_rnaseq_novoalign_mosdepth_tables, "stop", "end")
 setnames(cohort_wxs_novoalign_mosdepth_tables, "stop", "end")
-
-setcolorder(cohort_rnaseq_star_mosdepth_tables, c("sample_name", "allele", "start", "end", "feature_name", "depth"))
-setcolorder(cohort_rnaseq_novoalign_mosdepth_tables, c("sample_name", "allele", "start", "end", "feature_name", "depth"))
 setcolorder(cohort_wxs_novoalign_mosdepth_tables, c("sample_name", "allele", "start", "end", "feature_name", "depth"))
-
-fwrite(cohort_rnaseq_star_mosdepth_tables, "mosdepth_rnaseq_star.csv")
-fwrite(cohort_rnaseq_novoalign_mosdepth_tables, "mosdepth_novoalign_rnaseq_star.csv")
 fwrite(cohort_wxs_novoalign_mosdepth_tables, "mosdepth_novoalign_wes_star.csv")
+
+

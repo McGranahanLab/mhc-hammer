@@ -29,9 +29,9 @@ process DETECT_CN_AND_AIB {
     empty_ploidy_check = ploidy.isEmpty()
 
     patient_fasta = personalised_reference[0]
-    hla_genes_to_run = passed_heterozygous_hla_genes.collect().join(" ")
+    hla_genes_to_run = passed_heterozygous_hla_genes.collect().unique().join(" ")
     """  
-    echo "rerun"  
+    
     for gene in ${hla_genes_to_run}
     do
         echo Doing \${gene}
@@ -159,16 +159,18 @@ process DETECT_CN_AND_AIB {
         --allele2_filtered_pos_bed \$allele2_filtered_positions \
         --sample_name ${meta.normal_sample_name}_${meta.seq} 
 
+        allele1_gene_filtered_snp_positions=${meta.normal_sample_name}_${meta.seq}.\${allele1}.filtered_snp_positions.bed
+        allele2_gene_filtered_snp_positions=${meta.normal_sample_name}_${meta.seq}.\${allele2}.filtered_snp_positions.bed
+
         if [[ ${empty_purity_check} == "true" || ${empty_ploidy_check} == "true" ]]; then
-            echo Either purity or ploidy information is missing for ${meta.sample_id}, cannot get allele specific CN without this!           
+            missing_purity_ploidy=TRUE 
+            echo Either purity or ploidy information is missing for ${meta.sample_id}, cannot get allele specific CN without this!    
         else
+            missing_purity_ploidy=FALSE
             echo Step 6: Getting allele specific copy number 
             
             cn_output="${meta.sample_id}.\${gene}.${snp_type}.cn.csv"
             cn_plots_prefix="${meta.sample_id}.\${gene}.${snp_type}.cn"
-
-            allele1_gene_filtered_snp_positions=${meta.normal_sample_name}_${meta.seq}.\${allele1}.filtered_snp_positions.bed
-            allele2_gene_filtered_snp_positions=${meta.normal_sample_name}_${meta.seq}.\${allele2}.filtered_snp_positions.bed
 
             Rscript --vanilla ${baseDir}/bin/get_cn.R \
             --allele1 \$allele1 \
@@ -297,7 +299,8 @@ process DETECT_CN_AND_AIB {
     --genes ${hla_genes_to_run} \
     --snp_type ${snp_type} \
     --sample_name ${meta.sample_id} \
-    --aligner ${aligner}
+    --aligner ${aligner} \
+    --missing_purity_ploidy \$missing_purity_ploidy
 
     # Get R version and package versions
     R_VERSION=\$(Rscript -e "cat(as.character(getRversion()))")
@@ -330,6 +333,7 @@ process DETECT_MUTS {
     input:
     tuple val(patient_id), val(meta), path(tumour_bams), path(normal_bams), \
           val(passed_hla_alleles), path(personalised_reference), path(gtf)
+    val(aligner)
 
     output: // for now - only saving the sample level vep tables for mutation depth script
     path("*.vcf")                           optional true
@@ -340,15 +344,16 @@ process DETECT_MUTS {
 
     script:
     patient_fasta = personalised_reference[1]
-    hla_alleles_to_run = passed_hla_alleles.collect().join(" ")
+    hla_alleles_to_run = passed_hla_alleles.collect().unique().join(" ")
     // get zipped_gtf from [zipped_gtf, zipped_gtf.tbi]
     zipped_gtf = gtf[0]
     """
+    bgzip -dc ${zipped_gtf} > ${meta.sample_id}.gtf
     for allele in ${hla_alleles_to_run}
     do
         echo "Detecting mutations in \${allele}"
-        normal_bam=${meta.normal_sample_name}_${meta.seq}.\${allele}.sorted.filtered.bam
-        tumour_bam=${meta.sample_id}_${meta.seq}.\${allele}.sorted.filtered.bam
+        normal_bam=${meta.normal_sample_name}_${meta.seq}_${aligner}.\${allele}.sorted.filtered.bam
+        tumour_bam=${meta.sample_id}_${meta.seq}_${aligner}.\${allele}.sorted.filtered.bam
 
         gatk --java-options '-Xmx${task.memory.toGiga()}g -Xms1g' Mutect2 \
         -R ${patient_fasta} \
@@ -370,7 +375,6 @@ process DETECT_MUTS {
         -I ${meta.sample_id}.\${allele}.f1r2.tar.gz \
         -O ${meta.sample_id}.\${allele}.read-orientation-model.tar.gz 
 
-
         gatk --java-options '-Xmx${task.memory.toGiga()}g -Xms1g' FilterMutectCalls \
         -V ${meta.sample_id}.\${allele}.vcf \
         -R ${patient_fasta} \
@@ -382,9 +386,20 @@ process DETECT_MUTS {
         --output ${meta.sample_id}.\${allele}.norm.filt.vcf
 
         # run VEP
+        echo "making gtf"
+        Rscript ${baseDir}/bin/make_vep_gtf.R \
+            --gtf_path ${meta.sample_id}.gtf \
+            --gtf_vep_path ${meta.sample_id}.\${allele}.vep.gtf \
+            --allele \${allele}
+
+        bgzip ${meta.sample_id}.\${allele}.vep.gtf
+        tabix -p gff ${meta.sample_id}.\${allele}.vep.gtf.gz
+
         echo "running vep"
-        
-        vep -i ${meta.sample_id}.\${allele}.norm.filt.vcf --gtf ${zipped_gtf} --fasta ${patient_fasta} --vcf -o ${meta.sample_id}.\${allele}.norm.filt.vep.vcf \
+        vep -i ${meta.sample_id}.\${allele}.norm.filt.vcf \
+        --gtf ${meta.sample_id}.\${allele}.vep.gtf.gz \
+        --fasta ${patient_fasta} \
+        --vcf -o ${meta.sample_id}.\${allele}.norm.filt.vep.vcf \
         --fields "Allele,Consequence,IMPACT,Feature_type,Feature,EXON,INTRON,cDNA_position,CDS_position,Protein_position,Amino_acids,Codons,Existing_variation,DISTANCE,STRAND,FLAGS"
 
         gatk --java-options '-Xmx${task.memory.toGiga()}g -Xms1g' VariantsToTable \
@@ -393,8 +408,6 @@ process DETECT_MUTS {
         -F CHROM -F POS -F REF -F ALT -F FILTER  -GF AD -GF DP -F CSQ   \
         --show-filtered
 
-        # move the norm.filt.vcf to just filt.vcf 
-        mv ${meta.sample_id}.\${allele}.norm.filt.vcf ${meta.sample_id}.\${allele}.filt.vcf
     done
 
     # check if no mutations were detected
@@ -433,10 +446,9 @@ process PARSE_MUTATIONS {
     path "versions.yml"               , emit: versions
 
     script: 
-    // get list of normal samples 
-    normal_samples = normal_ids.collect().unique().join(" ")
     // get rid of bai files from bam channel
     tumour_bam_files = tumour_bams.findAll{ it.getName().endsWith(".bam") }.collect().join(" ")
+    normal_bam_files = normal_bams.findAll{ it.getName().endsWith(".bam") }.collect().unique().join(" ")
     // get list of non-empty vep tables 
     vep_tables = vep_tables.findAll{ !it.getName().endsWith("empty.vep.txt") }.collect().join(" ")
     """
@@ -444,7 +456,7 @@ process PARSE_MUTATIONS {
 
     Rscript ${baseDir}/bin/make_mutation_table.R \
             --vep_tables ${vep_tables} --wxs_tumour_bam_files ${tumour_bam_files} \
-            --gl_sample_ids ${normal_samples} --mutation_save_path "${patient_id}_mutations.csv" \
+            --wxs_gl_bam_files ${normal_bam_files} --mutation_save_path "${patient_id}_mutations.csv" \
             --scripts_dir ${projectDir}/bin/ --inventory ${inventory}
 
     # get R and library versions

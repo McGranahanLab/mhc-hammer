@@ -120,21 +120,11 @@ workflow DETECT_MUTATIONS {
         normal_alleles = normal_passed_hla_alleles.text.readLines().findAll { it =~ /^hla_/ }.sort()
 
         common_alleles = tumour_alleles.intersect(normal_alleles)
-    // Output warning message when their is missmatch between the passed hla alleles between tumour and normal samples
-    // passed here is a non-empty hla-allele-specific bam 
+    
     // Can only detect mutations where there is a matched normal
         if (common_alleles) {
-            if (tumour_alleles != normal_alleles) {
-                log.warn("Mismatch in passed hla alleles for tumour and normal samples:" +
-                "Normal_id: ${normal_id}, Tumour_id: ${sample_id}\n" +
-                "Tumour alleles: ${tumour_alleles.join(', ')}\n" +
-                "Normal alleles: ${normal_alleles.join(', ')}\n" +
-                "Mutation calling will only run on the alleles with a matched normal")
-            }
             [sample_id, tuple(common_alleles)]
         } else {
-            log.warn("No common passed hla alleles for tumour and normal samples: Normal_id: ${normal_id}, Tumour_id: ${sample_id}\n" +
-            "Mutation calling will not run for this sample")
             [''] // make commoon alleles an empty channel so it doesnt combine - wont run MHChammer 
         }
     }
@@ -159,7 +149,7 @@ workflow DETECT_MUTATIONS {
             .combine(personilsed_reference_and_gtf, by:0) // combine reference and zipped_gtf
 
     // MODULE: run mutect2 in single sample mode
-    DETECT_MUTS ( combined_tumour_normal_mutation_input_ch ) 
+    DETECT_MUTS ( combined_tumour_normal_mutation_input_ch, "novoalign" ) 
 
     // Merge sample level output for mutation calls
     patient_mutations = DETECT_MUTS.out.mutation_output
@@ -198,10 +188,10 @@ workflow DETECT_MUTATIONS {
     mutation_input_by_status = patient_mutations.branch(criteria)
 
     // MODULE: Parse mutations
-    // PARSE_MUTATIONS( mutation_input_by_status.samples_with_muts, inventory )
+    PARSE_MUTATIONS( mutation_input_by_status.samples_with_muts, inventory )
     
-    versions = versions.mix(DETECT_MUTS.out.versions.first()) // channel: [ versions.yml ]
-    // versions = versions.mix(PARSE_MUTATIONS.out.versions.first())
+    versions = versions.mix(DETECT_MUTS.out.versions.first()) 
+    versions = versions.mix(PARSE_MUTATIONS.out.versions.first())
 
     emit:
     versions

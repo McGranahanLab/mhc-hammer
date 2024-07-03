@@ -1,6 +1,6 @@
-suppressPackageStartupMessages(library(data.table))
-suppressPackageStartupMessages(library(deepSNV))
-suppressPackageStartupMessages(library(argparse))
+library(data.table)
+library(deepSNV)
+library(argparse)
 
 parser <- ArgumentParser()
 
@@ -120,9 +120,10 @@ for(line_idx in 1:nrow(tumour_mutations)){
 tumour_mutations[,nchar_ref := nchar(REF)]
 tumour_mutations[,nchar_alt := nchar(ALT)]
 tumour_mutations[nchar_ref == 1 & nchar_alt == 1, mut_type := "SNV"]
-tumour_mutations[nchar_ref > nchar_alt, mut_type := "DEL"]
-tumour_mutations[nchar_ref < nchar_alt, mut_type := "INS"]
+tumour_mutations[nchar_ref > nchar_alt & nchar_alt == 1, mut_type := "DEL"]
+tumour_mutations[nchar_ref < nchar_alt & nchar_ref == 1, mut_type := "INS"]
 tumour_mutations[nchar_ref == nchar_alt & nchar_alt > 1, mut_type := "MNV"]
+tumour_mutations[is.na(mut_type), mut_type := "COMPLEX"]
 
 # add in the start and end dna position
 tumour_mutations[,start_dna := POS]
@@ -152,13 +153,18 @@ for(tumour_sample in tumour_samples){
     ref <- region_bam_read_counts[line_idx]$REF
     alt <- region_bam_read_counts[line_idx]$ALT
     
-    bam_read_count_output <- get_bam_read_count(bam_path = region_bam_read_counts[line_idx]$bam_path, 
-                                                chr, start, stop, ref, alt, mutation_type)
-    
-    region_bam_read_counts[line_idx, tumour_ref_count := bam_read_count_output$bam_ref_count]
-    region_bam_read_counts[line_idx, tumour_alt_count := bam_read_count_output$bam_alt_count]
-    region_bam_read_counts[line_idx, tumour_N_count := bam_read_count_output$bam_N_count]
-    
+    if(mutation_type != "COMPLEX"){
+      bam_read_count_output <- get_bam_read_count(bam_path = region_bam_read_counts[line_idx]$bam_path, 
+                                                  chr, start, stop, ref, alt, mutation_type)
+      
+      region_bam_read_counts[line_idx, tumour_ref_count := bam_read_count_output$bam_ref_count]
+      region_bam_read_counts[line_idx, tumour_alt_count := bam_read_count_output$bam_alt_count]
+      region_bam_read_counts[line_idx, tumour_N_count := bam_read_count_output$bam_N_count]  
+    }else{
+      region_bam_read_counts[line_idx, tumour_ref_count := NA]
+      region_bam_read_counts[line_idx, tumour_alt_count := NA]
+      region_bam_read_counts[line_idx, tumour_N_count := NA]  
+    }
   }
   
   tumour_bam_read_counts <- rbindlist(list(tumour_bam_read_counts, region_bam_read_counts))
@@ -181,13 +187,18 @@ for(germline_sample in germline_samples){
     ref <- region_bam_read_counts[line_idx]$REF
     alt <- region_bam_read_counts[line_idx]$ALT
     
-    bam_read_count_output <- get_bam_read_count(bam_path = region_bam_read_counts[line_idx]$bam_path, 
-                                                chr, start, stop, ref, alt, mutation_type)
-    
-    region_bam_read_counts[line_idx, germline_ref_count := bam_read_count_output$bam_ref_count]
-    region_bam_read_counts[line_idx, germline_alt_count := bam_read_count_output$bam_alt_count]
-    region_bam_read_counts[line_idx, germline_N_count := bam_read_count_output$bam_N_count]
-    
+    if(mutation_type != "COMPLEX"){
+      bam_read_count_output <- get_bam_read_count(bam_path = region_bam_read_counts[line_idx]$bam_path, 
+                                                  chr, start, stop, ref, alt, mutation_type)
+      
+      region_bam_read_counts[line_idx, germline_ref_count := bam_read_count_output$bam_ref_count]
+      region_bam_read_counts[line_idx, germline_alt_count := bam_read_count_output$bam_alt_count]
+      region_bam_read_counts[line_idx, germline_N_count := bam_read_count_output$bam_N_count]
+    }else{
+      region_bam_read_counts[line_idx, germline_ref_count := NA]
+      region_bam_read_counts[line_idx, germline_alt_count := NA]
+      region_bam_read_counts[line_idx, germline_N_count := NA]
+    }
   }
   
   germline_bam_read_counts <- rbindlist(list(germline_bam_read_counts, region_bam_read_counts))
