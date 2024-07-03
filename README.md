@@ -2,18 +2,16 @@
 
 MHC Hammer is a bioinformatics pipeline designed for the analysis of the class I HLA genes using paired-end WXS and RNAseq data. 
 
-Depending on the input data, the following analysis can be run:
+MHC Hammer requires every patient to have a whole exome sequencing (WES) germline blood sample. In addition, MHC Hammer requires the following inputs:
 
-DNA analysis from the WXS data:
-* Call DNA allelic imbalance in the tumour samples
-* Call allelic copy number in the tumour samples (if tumour purity and ploidy is provided)
-* Call loss of heterozygosity in the tumour samples (if tumour purity and ploidy is provided)
-* Call and predict the consequences of allelic somatic mutations  in the tumour samples
-
-RNA analysis from the RNAseq data:
-* Calculate allelic expression in the tumour and normal samples
-* Call allele repression or over expression in the tumour samples compared to a match normal sample (only if the patient has a matched normal sample)
-* Call allelic alternative splicing in the tumour and normal samples
+To estimate DNA HLA allelic imbalance and somatic mutations:
+- A tumour WES BAM file.
+To estimate DNA HLA copy number and LOH:
+- A tumour WES BAM file with purity and ploidy estimates. 
+To estimate RNA HLA allelic expression, allelic imbalance and alternative splicing:
+- A tumour or normal RNAseq BAM file.
+To estimate RNA HLA allelic repression:
+- A tumour and normal RNAseq BAM file. 
 
 ## Pipeline overview
 ![diagram](img/mhc_hammer.svg)
@@ -61,7 +59,10 @@ project_dir=${PWD}
 ```
 
 ### 4. Download the MHC Hammer reference files
-The reference files to run MHC Hammer can be downloaded from Zenodo: https://zenodo.org/records/11059410
+The MHC Hammer refernece files are created from sequences stored in the IMGT database. We have created MHC Hammer references from two IMGT versions:
+- version 3.38, which can be downloaded from https://zenodo.org/records/11059410
+- version 3.55, which can be downloaded from https://zenodo.org/records/12606532
+
 This should download two folders, `kmer_files` and `mhc_references`. Save these folders in the assets folder:
 - `assets/kmer_files/imgt_30mers.fa` - This file contains all 30mers created from the sequences in the IMGT database. For an overview of how this file was created see `docs/mhc_reference_files.md`
 - `assets/mhc_references` - this folder contains the MHC reference files used in the MHC Hammer pipeline. For an overview of how these file were created see `docs/mhc_reference_files.md`
@@ -89,7 +90,7 @@ The steps are as follows:
    - update the HLA-HD allele dictionary to the IMGT database version 3.55. This is the same IMGT version that is used to make the reference files saved in the `assets/mhc_references` folder. 
 
    This `install_hlahd.sh` script requires:
-   - g++ and wget to be installed
+   - g++, wget and python to be installed
    - The mhc_hammer_preprocessing_latest.sif to be in the `$project_dir/singularity_images/` folder.
    - The `hlahd_download` variable to be set as the path to /path/to/hlahd_download.tar.gz.
 
@@ -144,11 +145,28 @@ An example of the file format can be found here: https://github.com/McGranahanLa
 
 **Remember that the alleles input to MHC Hammer must be present in the MHC Hammer reference files in the `assets/mhc_references` folder.** You can get a list of alleles from the fasta file, e.g. `grep '^>' assets/mhc_references/mhc_genome.fasta`
 
-### 6. Update the pipeline parameters and config files
+### 6. Update the HPC config files
 
-To ensure that the MHC Hammer pipeline works on your HPC system, you can update the variables in `conf/hpc.config`. This can be provided to the pipeline using the `-c` parameter. Alternatively, if it exists, you can use a config file specific for your institute. See this [page](https://www.nextflow.io/docs/latest/config.html) for more information on nextflow config files.
+The `conf/hpc.config` file controls how the pipeline is run on your HPC system. Before running the pipeline you may want to update the variables in `conf/hpc.config` to suit your HPC system. In particular, it might be useful to specify the [singularity bind directory](https://docs.sylabs.io/guides/3.0/user-guide/bind_paths_and_mounts.html) by adding 
+``` bash
+singularity {
+    runOptions = "-B /bind_directory"
+}
+```
+to `conf/hpc.config`, and changing `bind_directory` to your choosen path. You may also need to add the name of your HPC queue by adding 
 
-You can update MHC Hammer pipeline parameters in the `nextflow.conf` file. Alternatively, you can change the parameters by inputting them directly when you run the pipeline. For a full overview of the pipeline parameters run:
+``` bash
+process {
+    queue = 'cpu'
+}
+```
+to `conf/hpc.config`, and changing `cpu` to the name of the HPC queue that you are using.
+
+Alternatively, if it exists, you can use a config file specific for your institute. See this [page](https://www.nextflow.io/docs/latest/config.html) for more information on nextflow config files.
+
+### 7. Update the MHC Hammer pipeline parameters
+
+You can change the MHC Hammer pipeline parameters from the default in the `nextflow.conf` file. Alternatively, you can change the parameters by inputting them directly when you run the pipeline. For a full overview of the pipeline parameters run:
 ```bash
 nextflow run main.nf --help --show_hidden_params
 ```
@@ -161,6 +179,8 @@ nextflow run main.nf \
 --input /path/to/inventory \
 -c conf/hpc.config -resume
 ```
+
+This command needs to be run from the project directory.
 
 The `-resume` flag tells the pipeline to not rerun tasks that have sucessfully completed. See this [page](https://www.nextflow.io/blog/2019/demystifying-nextflow-resume.html) for more information on Nextflow caching.
 
