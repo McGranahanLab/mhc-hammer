@@ -87,25 +87,39 @@ The steps are as follows:
    ```
 3. Run the [install_hlahd.sh](scripts/install_hlahd.sh) script. This script will:
    - install HLA-HD and bowtie2 (2.5.1) and store them in the `${project_dir}/bin/` directory. 
-   - update the HLA-HD allele dictionary to the IMGT database version 3.55. This is the same IMGT version that is used to make the reference files saved in the `assets/mhc_references` folder. 
+   - update the HLA-HD allele dictionary to the IMGT database version 3.55. This is the same IMGT version that was used to make the reference files which can be downloaded from https://zenodo.org/records/12606532
 
    This `install_hlahd.sh` script requires:
-   - g++, wget and python to be installed
-   - The mhc_hammer_preprocessing_latest.sif to be in the `$project_dir/singularity_images/` folder.
+   - g++, wget and python3 to be installed
+   - The mhc_hammer_preprocessing_latest.sif to be in the `$project_dir/singularity_images/` folder (see below)
    - The `hlahd_download` variable to be set as the path to /path/to/hlahd_download.tar.gz.
 
-   To run `install_hlahd.sh`:
+   To download the mhc_hammer_preprocessing_latest.sif container:
+   ```bash
+   cd ${project_dir}/singularity_images
+   singularity pull --arch amd64 library://tpjones15/default/mhc_hammer_preprocessing:latest
+   mhc_hammer_preprocessing_sif="${project_dir}/singularity_images/mhc_hammer_preprocessing_latest.sif"
+   ```
+
+   Then, run `install_hlahd.sh`:
    ```bash
    bash ${project_dir}/scripts/install_hlahd.sh -p ${project_dir} -h ${hlahd_download}
    ```
 
-   If you want to use a different version of the IMGT database with HLA-HD you can change the following line in `scripts/install_hlahd.sh` to your choosen version of the IMGT database:
-   ```
-   $singularity_command sed -i 's,wget https://media.githubusercontent.com/media/ANHIG/IMGTHLA/Latest/hla.dat,wget https://media.githubusercontent.com/media/ANHIG/IMGTHLA/v3.55.0-alpha/hla.dat,' update.dictionary.sh
-   ```
-   Alternatively you can comment out this line to use HLA-HD with the most recent IMGT release. **Remember that the HLA-HD database version should match the version used to create the files in the `assets/mhc_references` folder.**
+   If you want to use a different version of the IMGT database with HLA-HD you can change line 14 in `bin/update.dictionary.alt.sh` to your choosen version of the IMGT database:
+   ```bash
+   wget https://github.com/ANHIG/IMGTHLA/raw/3550/hla.dat.zip ## this downloads version 3.55
 
-4. When running the pipeline ensure you run with ```--local_hlahd_install true```
+   ## For example, for version 3.38, replace line above with:
+   wget https://github.com/ANHIG/IMGTHLA/raw/3380/hla.dat.zip
+
+   ## Or, for the latest version:
+   wget https://github.com/ANHIG/IMGTHLA/raw/Latest/hla.dat.zip
+
+   ```
+   **Remember that the HLA-HD database version should match the version used to create the files in the `assets/mhc_references` folder.**
+
+4. When running the pipeline ensure you run with ```--hlahd_local_install true (default)```
 
 #### Option 2: Create your own HLA-HD singularity container
 
@@ -114,6 +128,7 @@ We are unable to provide a singularity container for HLA-HD tool. Instead, we ha
 1. On the HLA-HD website fill in the [download request form](https://www.genome.med.kyoto-u.ac.jp/HLA-HD/download-request/) to get a download link for HLA-HD
 2. Edit the `assets/hlahd_container.def` file:
    - Update the `/path/to/downloaded/hlahd.version.tar.gz` in the `%files` section 
+   - Update the `/path/to/project_dir/bin/update.dictionary.alt.sh` in the `%files` section 
    - Update the `HLAHD_VERSION` variable in the `%post` section 
 3. Build the singularity image:
    ```bash
@@ -125,11 +140,18 @@ We are unable to provide a singularity container for HLA-HD tool. Instead, we ha
    ```
 5. When running the MHC Hammer pipeline ensure you run with `--hlahd_local_install false`.
 
-If you want to use a different version of the IMGT database with HLA-HD you can change the following line in `assets/hlahd_container.def` to your choosen version of the IMGT database:
-```
-sed -i 's,wget https://media.githubusercontent.com/media/ANHIG/IMGTHLA/Latest/hla.dat,wget https://media.githubusercontent.com/media/ANHIG/IMGTHLA/v3.55.0-alpha/hla.dat,' update.dictionary.sh
-```
-Alternatively you can comment out this line to use HLA-HD with the most recent IMGT release. **Remember that the HLA-HD database version should match the version used to create the files in the `assets/mhc_references` folder.**
+   If you want to use a different version of the IMGT database with HLA-HD you can change line 14 in `bin/update.dictionary.alt.sh` to your choosen version of the IMGT database before building the image:
+   ```bash
+   wget https://github.com/ANHIG/IMGTHLA/raw/3550/hla.dat.zip ## this downloads version 3.55
+
+   ## For example, for version 3.38, replace line above with:
+   wget https://github.com/ANHIG/IMGTHLA/raw/3380/hla.dat.zip
+
+   ## Or, for the latest version:
+   wget https://github.com/ANHIG/IMGTHLA/raw/Latest/hla.dat.zip
+
+   ```
+   **Remember that the HLA-HD database version should match the version used to create the files in the `assets/mhc_references` folder.**
 
 #### Option 3: Input HLA alleles to MHC Hammer
 
@@ -202,11 +224,11 @@ If you already have subsetted BAM files and flagstat output, you can input these
 By defult, the output is saved in the working directory in a folder called `mhc_hammer_results`. See `docs/mhc_hammer_outputs.md` for an overview of all outputs from MHC Hammer.
 
 ## Test dataset
-A test dataset is provided. The input BAMs and inventory are in the `test_data` folder. Note that you will need to update the inventory columns `bam_path` and `hla_alleles_path` so that they contain the full paths to the file.
+A test dataset is provided. The input BAMs and inventory are in the `test/data` folder. **Note that you will need to update the inventory columns `bam_path` and `hla_alleles_path` so that they contain the full paths to the files.**
 
 To run the pipeline with the test dataset, including the HLA-HD step:
 ```bash
-nextflow run main.nf -profile test,singularity --input test/test_data/mhc_hammer_test_inventory.csv
+nextflow run main.nf -profile test,singularity --input test/data/mhc_hammer_test_inventory.csv
 ```
 
 To run the pipeline with the test dataset, without the HLA-HD step:
