@@ -1,25 +1,29 @@
-Bootstrap: docker                                                                                                                             
-From: condaforge/mambaforge:latest                                                                                                           
+Bootstrap: docker
+From: ubuntu:20.04
 
-%environment                                                                                                                                  
-    PATH=/opt/conda/bin:$PATH:/bin/hlahd/bin:$PATH:/bin/bowtie2/:$PATH                                                                        
-    LC_ALL=C.UTF-8                                                                                                                            
-    LANG=C.UTF-8                                                                                                                              
-    TZ=Europe/London                                                                                                                          
+%environment
+    PATH=/usr/local/bin:$PATH:/bin/hlahd/bin:$PATH:/bin/bowtie2/:$PATH
+    LC_ALL=C.UTF-8
+    LANG=C.UTF-8
+    TZ=Europe/London
 
-%files                                                                                                                                        
-    /path/to/downloaded/hlahd.version.tar.gz /bin/hlahd.tar.gz  ##### Replace with the path to your hlahd.version.tar.gz file
+%files
+    /path/to/downloaded/hlahd.1.7.0.tar.gz /bin/hlahd.tar.gz  ##### Replace with the path to your hlahd.version.tar.gz file
+    /path/to/mhc-hammer/bin/update.dictionary.alt.sh /bin/update.dictionary.alt.sh ##### replace with path to ${projectDir}/bin/update.dictionary.alt.sh
 
-%post                                                                                                                                         
+%post
     HLAHD_VERSION=1.7.0 # Replace with the version of HLA-HD you are using
     echo "export HLAHD_VERSION=\"${HLAHD_VERSION}\"" >> $SINGULARITY_ENVIRONMENT
 
+    # Set non-interactive mode for apt-get
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -y && apt-get upgrade -y
-    apt-get install -y wget unzip build-essential libz-dev
+    apt-get install -y wget unzip build-essential libz-dev bzip2 r-base python3 python3-pip
 
-    # Use mamba to install R and required packages directly into the base environment
-    mamba install -y -c conda-forge r-base r-argparse=2.1.6 r-data.table=1.14.4
+    # Install specific versions of R packages
+    Rscript -e "install.packages('remotes', repos='http://cran.rstudio.com/')"
+    Rscript -e "remotes::install_version('argparse', version = '2.1.6', repos = 'http://cran.rstudio.com/')"
+    Rscript -e "remotes::install_version('data.table', version = '1.14.4', repos = 'http://cran.rstudio.com/')"
 
     cd /bin
 
@@ -29,7 +33,7 @@ From: condaforge/mambaforge:latest
     rm bowtie2-2.5.1-linux-x86_64.zip
     mv bowtie2-2.5.1-linux-x86_64 bowtie2
 
-    # add bowtie2 to PATH
+    # Add bowtie2 to PATH
     export PATH=$PATH:/bin/bowtie2/:$PATH
 
     # Install HLA-HD and update the dictionary
@@ -38,5 +42,9 @@ From: condaforge/mambaforge:latest
     mv hlahd.${HLAHD_VERSION} hlahd
     cd hlahd
     sh install.sh
-    sed -i 's,wget https://media.githubusercontent.com/media/ANHIG/IMGTHLA/v3.38.0-alpha/hla.dat,wget https://media.githubusercontent.com/media/ANHIG/IMGTHLA/v3.55.0-alpha/hla.dat,' update.dictionary.sh
-    sh update.dictionary.sh
+    sh ../update.dictionary.alt.sh
+
+%test
+    echo "Running R installation test..."
+    Rscript -e "if (!requireNamespace('argparse', quietly = TRUE)) { quit(status = 1) } else { cat('argparse package found\n') }"
+    Rscript -e "if (!requireNamespace('data.table', quietly = TRUE)) { quit(status = 1) } else { cat('data.table package found\n') }"
