@@ -2,6 +2,8 @@
 
 MHC Hammer is a bioinformatics pipeline designed for the analysis of the class I HLA genes using paired-end WXS and RNAseq data. 
 
+![diagram](img/figure1.pdf)
+
 MHC Hammer requires every patient to have a whole exome sequencing (WES) germline blood sample. In addition, MHC Hammer requires the following inputs:
 
 To estimate DNA HLA allelic imbalance and somatic mutations:
