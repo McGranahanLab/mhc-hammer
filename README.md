@@ -1,8 +1,10 @@
 ## Introduction
 
-MHC Hammer is a bioinformatics pipeline designed for the analysis of the class I HLA genes using paired-end WXS and RNAseq data. 
+Disruption of the class I human leukocyte antigen (HLA) molecules has important implications for immune evasion and tumor evolution. To evaluate the extent of genomic and transcriptomic HLA disruption, we developed MHC Hammer, which has the following four major components: (1) identifying allele-specific HLA somatic mutations, (2) calculating HLA LOH, (3) evaluating HLA allele-specific repression and (4) identifying allele-specific HLA alternative splicing. 
 
 ![diagram](img/figure1.png)
+
+You can find our MHC Hammer publication here: https://www.nature.com/articles/s41588-024-01883-8
 
 MHC Hammer requires every patient to have a whole exome sequencing (WES) germline blood sample. In addition, MHC Hammer requires the following inputs:
 
