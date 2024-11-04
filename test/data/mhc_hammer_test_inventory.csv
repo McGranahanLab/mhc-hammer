@@ -1,5 +1,5 @@
-patient,sample_name,sample_type,bam_path,sequencing_type,purity,ploidy,normal_sample_name,hla_alleles_path
-SIM001,SIM001_GL,normal,test/data/SIM_001_gl_genome.bam,wxs,,,,test/data/SIM001_hla_alleles.csv
-SIM001,SIM001_TUM,tumour,test/data/SIM_001_tumour_genome.bam,wxs,0.5,2,SIM001_GL,test/data/SIM001_hla_alleles.csv
-SIM001,SIM001_N01,normal,test/data/SIM_001_gl_transcriptome.bam,rna,,,,test/data/SIM001_hla_alleles.csv
-SIM001,SIM001_TUM,tumour,test/data/SIM_001_tumour_transcriptome.bam,rna,,,SIM001_N01,test/data/SIM001_hla_alleles.csv
+patient,sample_name,sample_type,bam_path,sequencing_type,purity,ploidy,normal_sample_name,hla_alleles_path,paired_end
+SIM001,SIM001_GL,normal,test/data/SIM_001_gl_genome.bam,wxs,,,,test/data/SIM001_hla_alleles.csv,paired
+SIM001,SIM001_TUM,tumour,test/data/SIM_001_tumour_genome.bam,wxs,0.5,2,SIM001_GL,test/data/SIM001_hla_alleles.csv,paired
+SIM001,SIM001_N01,normal,test/data/SIM_001_gl_transcriptome.bam,rna,,,,test/data/SIM001_hla_alleles.csv,paired
+SIM001,SIM001_TUM,tumour,test/data/SIM_001_tumour_transcriptome.bam,rna,,,SIM001_N01,test/data/SIM001_hla_alleles.csv,paired

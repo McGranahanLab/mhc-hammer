@@ -35,7 +35,7 @@ rna_with_unmapped_tables <- output_tables[table_type == "rna_with_unmapped"]
 
 # wes without unmapped
 cohort_wes_without_unmapped <- data.table()
-for(line_idx in 1:nrow(wes_without_unmapped_tables)){
+for(line_idx in seq_len(nrow(wes_without_unmapped_tables))){
   
   x <- as.numeric(readLines(wes_without_unmapped_tables[line_idx]$csv_path))
   
@@ -47,7 +47,7 @@ for(line_idx in 1:nrow(wes_without_unmapped_tables)){
 
 # wes with unmapped
 cohort_wes_with_unmapped <- data.table()
-for(line_idx in 1:nrow(wes_with_unmapped_tables)){
+for(line_idx in seq_len(nrow(wes_with_unmapped_tables))){
   
   x <- as.numeric(readLines(wes_with_unmapped_tables[line_idx]$csv_path))
   
@@ -60,7 +60,7 @@ for(line_idx in 1:nrow(wes_with_unmapped_tables)){
 # rna without unmapped
 cohort_rna_without_unmapped <- data.table()
 if(nrow(rna_without_unmapped_tables) > 0){
-  for(line_idx in 1:nrow(rna_without_unmapped_tables)){
+  for(line_idx in seq_len(nrow(rna_without_unmapped_tables))){
     
     x <- as.numeric(readLines(rna_without_unmapped_tables[line_idx]$csv_path))
     
@@ -76,7 +76,7 @@ if(nrow(rna_without_unmapped_tables) > 0){
 # rna with unmapped
 cohort_rna_with_unmapped <- data.table()
 if(nrow(rna_with_unmapped_tables) > 0){
-  for(line_idx in 1:nrow(rna_with_unmapped_tables)){
+  for(line_idx in seq_len(nrow(rna_with_unmapped_tables))){
     
     x <- as.numeric(readLines(rna_with_unmapped_tables[line_idx]$csv_path))
     
@@ -99,20 +99,26 @@ if(nrow(cohort_rna_with_unmapped) > 0 && nrow(cohort_rna_without_unmapped) > 0){
   rna_library_size_dt[,sequencing_type := "rnaseq"]
 }
 
-cohort_wes_with_unmapped[, sample_name := gsub("_wxs.library_size_with_unmapped.txt", "", csv_path)]
-cohort_wes_with_unmapped[,csv_path := NULL]
-
-cohort_wes_without_unmapped[, sample_name := gsub("_wxs.library_size_without_unmapped.txt", "", csv_path)]
-cohort_wes_without_unmapped[,csv_path := NULL]
-
-wes_library_size_dt <- merge(cohort_wes_with_unmapped, cohort_wes_without_unmapped, by = "sample_name", all = TRUE)
-if(nrow(wes_library_size_dt[is.na(read_count_without_unmapped) | is.na(read_count_with_unmapped)]) > 0){
-  stop("why are wes samples missing a library size")
+if(nrow(cohort_wes_with_unmapped) > 0){
+  cohort_wes_with_unmapped[, sample_name := gsub("_wxs.library_size_with_unmapped.txt", "", csv_path)]
+  cohort_wes_with_unmapped[,csv_path := NULL]
 }
-wes_library_size_dt[, fraction_align := read_count_without_unmapped/read_count_with_unmapped]
 
-wes_library_size_dt[,sequencing_type := "wes"]
+if(nrow(cohort_wes_without_unmapped) > 0){
+  cohort_wes_without_unmapped[, sample_name := gsub("_wxs.library_size_without_unmapped.txt", "", csv_path)]
+  cohort_wes_without_unmapped[,csv_path := NULL]
+}
 
+wes_library_size_dt <- data.table()
+if (nrow(cohort_wes_with_unmapped) > 0 || nrow(cohort_wes_without_unmapped) > 0) {
+  wes_library_size_dt <- merge(cohort_wes_with_unmapped, cohort_wes_without_unmapped, by = "sample_name", all = TRUE)
+  if(nrow(wes_library_size_dt[is.na(read_count_without_unmapped) | is.na(read_count_with_unmapped)]) > 0){
+    stop("why are wes samples missing a library size")
+  }
+  wes_library_size_dt[, fraction_align := read_count_without_unmapped/read_count_with_unmapped]
+
+  wes_library_size_dt[, sequencing_type := "wes"]
+}
 library_size_dt <- rbindlist(list(wes_library_size_dt, rna_library_size_dt))
 
 fwrite(library_size_dt, "cohort_library_size.csv")

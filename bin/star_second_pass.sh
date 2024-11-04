@@ -11,8 +11,9 @@ original_genome_size=""
 fasta_file=""
 gtf_file=""
 star_overhang=""
+paired_end=""
 
-while getopts "f:t:s:j:b:r:l:a:g:o:" opt; do
+while getopts "f:t:s:j:b:r:l:a:g:p:o:" opt; do
     case "${opt}" in
         f)
             fq_prefix="${OPTARG}";
@@ -43,6 +44,9 @@ while getopts "f:t:s:j:b:r:l:a:g:o:" opt; do
             ;;     
         o)
             star_overhang="${OPTARG}";
+            ;;                         
+        p)
+            paired_end="${OPTARG}";
             ;;                                                             
         \?)
             echo -e "Error: Invalid option: -${OPTARG}\n" >&2
@@ -114,8 +118,15 @@ echo original_genome_size=$original_genome_size
 echo fasta_file=$fasta_file
 echo gtf_file=$gtf_file
 echo star_overhang=$star_overhang
+echo paired_end=$paired_end
 echo PWD=$PWD
 echo ""
+
+if [ "$paired_end" = "true" ]; then
+    read_files_in="$fq_prefix.1.fq.gz $fq_prefix.2.fq.gz"
+else
+    read_files_in="$fq_prefix.fq.gz"
+fi
 
 echo "Running STAR"
 set +e
@@ -123,7 +134,7 @@ set +e
     STAR \
     --runThreadN $task_cpus \
     --genomeDir $reference_dir \
-    --readFilesIn $fq_prefix".1.fq.gz" $fq_prefix".2.fq.gz" \
+    --readFilesIn $read_files_in \
     --readFilesCommand gunzip -c \
     --outSAMunmapped None \
     --outFilterType BySJout \
@@ -173,7 +184,7 @@ if [[ "$star_error_code" -eq 139 ]]; then
         STAR \
         --runThreadN $task_cpus \
         --genomeDir "star_genome_"$new_genome_length \
-        --readFilesIn $fq_prefix".1.fq.gz" $fq_prefix".2.fq.gz" \
+        --readFilesIn $read_files_in \
         --readFilesCommand gunzip -c \
         --outSAMunmapped None \
         --outFilterType BySJout \
