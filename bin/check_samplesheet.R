@@ -9,11 +9,17 @@ parser$add_argument('--sample_sheet_path',  nargs=1,
 parser$add_argument('--validated_sample_sheet_path', nargs=1,
                     help="Path to save sample sheet",
                     required=TRUE)
+parser$add_argument('--run_hlahd', nargs='?',
+                    const=TRUE,
+                    default=TRUE,
+                    help="If true, predict HLA alleles from WXS germline sample",
+                    required=FALSE)
 
 args <- parser$parse_args()
 
 sample_sheet_path <- args$sample_sheet_path
 validated_sample_sheet_path <- args$validated_sample_sheet_path
+run_hlahd <- args$run_hlahd
 
 # Read in the sample sheet
 if(!file.exists(sample_sheet_path)){
@@ -97,7 +103,12 @@ if(missing_gl){
   missing_gl_patients <- unique(sample_sheet[!patient %in% patients_with_wxs_gl]$patient)
   msg <- paste0("The following patients are missing a germline WXS sample in the sample sheet:\n",
                 paste0(missing_gl_patients, collapse = "\n"), "\n")
-  stop(msg)
+  warning(msg)
+  if (run_hlahd) {
+    msg <- paste0("Cannot run HLAHD without a germline WXS, ",
+                  "provide path to HLA alleles in input inventory file.")
+    stop(msg)
+  }
 }
 
 # check every matched normal has a bam path

@@ -17,7 +17,8 @@ process SAMPLESHEET_CHECK {
     """
     Rscript --vanilla ${baseDir}/bin/check_samplesheet.R \
         --sample_sheet_path ${samplesheet} \
-        --validated_sample_sheet_path samplesheet.valid.csv
+        --validated_sample_sheet_path samplesheet.valid.csv \
+        --run_hlahd ${params.run_hlahd}
     
     # Get R version and package versions
     R_VERSION=\$(Rscript -e "cat(as.character(getRversion()))")

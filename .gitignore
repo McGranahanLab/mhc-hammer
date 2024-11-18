@@ -3,3 +3,11 @@ mhc_hammer_output
 .DS_Store
 singularity*
 
+conf/*.config
+!conf/base.config
+!conf/hpc.config
+!conf/modules.config
+!conf/test.config
+
+assets/kmer_files
+assets/mhc_references

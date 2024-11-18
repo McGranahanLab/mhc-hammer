@@ -38,6 +38,7 @@ You need to create a inventory file with the following columns:
 - purity - the purity of the tumour region. Can be left empty.
 - ploidy - the ploidy of the tumour region. Can be left empty.
 - normal_sample_name - when sequencing_type is `wxs` this is the matched germline WXS. When sequencing_type is `rnaseq` this is the matched RNAseq normal name. Can be left empty.
+- paired_end - either `paired` or `single`, depending on the sequencing type. Optional.
 
 The inventory should be a csv file and is input to the pipeline with the `--input` parameter. 
 

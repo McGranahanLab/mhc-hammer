@@ -6,6 +6,7 @@ max_mismatch=$3
 sample_id=$4
 seq=$5
 aligner=$6
+paired_end=$7
 
 echo "hla_bam=$hla_bam"
 echo "scripts_dir=$scripts_dir"
@@ -13,6 +14,7 @@ echo "max_mismatch=$max_mismatch"
 echo "sample_id=$sample_id"
 echo "seq=$seq"
 echo "aligner=$aligner"
+echo "paired_end=$paired_end"
 
 
 # Get patient alleles to loop through
@@ -51,7 +53,8 @@ for i in ${alleles}; do
     --bam_path "${sample_id}_${seq}_${aligner}.${i}.sorted.bam" \
     --max_mismatch "${max_mismatch}" \
     --allele "${i}" \
-    --sample_name "${sample_id}_${seq}_${aligner}"
+    --sample_name "${sample_id}_${seq}_${aligner}" \
+    --paired_end "$paired_end"
 
 
     # Step 6: Generate final allele-specific BAM if passed reads file is not empty

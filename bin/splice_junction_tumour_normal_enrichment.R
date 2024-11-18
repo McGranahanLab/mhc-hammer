@@ -47,11 +47,17 @@ normal_known_sjs <- fread(normal_known_sjs_path)
 tumour_sample_name <- unique(tumour_novel_sjs$sample_name)
 normal_sample_name <- unique(normal_novel_sjs$sample_name)
 
+if(!"intron_n_reads" %in% colnames(tumour_novel_sjs)) {
+  tumour_novel_sjs$intron_n_reads <- NA
+}
 tumour_novel_sjs <- tumour_novel_sjs[,c("allele", "gene", "start", "end", "n_unique_reads", "canonical_sj_read_count",
                                         "intron_n_reads", "novel_transcript_proportion", "total_read_count",
                                         "novel_sj_cat", "canonical_sj_names", "sj_type",
                                         "framshift", "premature_stop", "exon_intron_name")]
 
+if(!"intron_n_reads" %in% colnames(normal_novel_sjs)) {
+  normal_novel_sjs$intron_n_reads <- NA
+}
 normal_novel_sjs <- normal_novel_sjs[,c("allele", "gene", "start", "end", "n_unique_reads", "canonical_sj_read_count",
                                         "intron_n_reads", "novel_transcript_proportion", "total_read_count",
                                         "novel_sj_cat", "canonical_sj_names", "sj_type",
