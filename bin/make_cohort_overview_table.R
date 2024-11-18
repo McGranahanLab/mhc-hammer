@@ -15,21 +15,27 @@ parser$add_argument('--hlahd_germline_samples_path',
                     help="Path to the germline samples used by HLAHD",
                     required=FALSE)
 parser$add_argument('--max_cn_range',
-                    help="Maximum range in cn",
+                    type="double",
+                    help="Maximum range in copy number",
                     required=TRUE)
 parser$add_argument('--min_n_snps',
-                    help="Minimum number of snps",
+                    type="integer",
+                    help="Minimum number of SNPs",
                     required=TRUE)
 parser$add_argument('--min_expected_depth',
-                    help="Minimum number of snps",
+                    type="double",
+                    help="Minimum expected depth",
                     required=TRUE)
 parser$add_argument('--min_frac_mapping_uniquely',
+                    type="double",
                     help="",
                     required=TRUE)
 parser$add_argument('--max_frac_mapping_multi_gene',
+                    type="double",
                     help="",
                     required=TRUE)
 parser$add_argument('--dna_snp_min_depth',
+                    type="integer",
                     help="",
                     required=TRUE)
 
@@ -38,12 +44,12 @@ inventory_path <- args$inventory_path
 csv_tables_path <- args$csv_tables_path
 hlahd_germline_samples_path <- args$hlahd_germline_samples_path
 outfile <- args$outfile
-max_cn_range <- args$max_cn_range
-min_n_snps <- args$min_n_snps
-min_expected_depth <- args$min_expected_depth
-min_frac_mapping_uniquely <- args$min_frac_mapping_uniquely
-max_frac_mapping_multi_gene <- args$max_frac_mapping_multi_gene
-dna_snp_min_depth <- args$dna_snp_min_depth
+max_cn_range <- as.numeric(args$max_cn_range)
+min_n_snps <- as.numeric(args$min_n_snps)
+min_expected_depth <- as.numeric(args$min_expected_depth)
+min_frac_mapping_uniquely <- as.numeric(args$min_frac_mapping_uniquely)
+max_frac_mapping_multi_gene <- as.numeric(args$max_frac_mapping_multi_gene)
+dna_snp_min_depth <- as.numeric(args$dna_snp_min_depth)
 
 cat('inventory_path="', inventory_path, '"\n')
 cat('csv_tables_path="', csv_tables_path, '"\n')
