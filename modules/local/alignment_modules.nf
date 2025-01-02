@@ -15,16 +15,50 @@ process NOVOALIGN {
     path ("versions.yml"), emit: versions
 
     script:
-    fq1 = fqs[0]
-    fq2 = fqs[1]
+    if (fqs instanceof List) {
+        if (fqs.size() == 2) {
+            // Paired-end reads
+            fq1 = fqs[0]
+            fq2 = fqs[1]
+            fq = ""  // Not used for paired-end
+        } else if (fqs.size() == 1) {
+            // Single-end reads as a List with one element
+            fq = fqs[0]
+            fq1 = ""
+            fq2 = ""
+        } else {
+            throw new IllegalArgumentException("Unexpected List input format for fqs: ${fqs}")
+        }
+    } else if (fqs instanceof String || fqs instanceof nextflow.processor.TaskPath) {
+        // Single-end read as a String or TaskPath
+        fq = fqs
+        fq1 = ""
+        fq2 = ""
+    } else {
+        throw new IllegalArgumentException(
+            "Unexpected input format for fqs: ${fqs} " +
+            "(type: ${fqs.getClass().getName()}). " +
+            "Expected either a List with 2 elements (for paired-end reads) " +
+            "or a String/ List with 1 element (for single-end reads)."
+        )
+    }
     """
     # Create named pipes to avoid writing uncompressed FASTQs to disk
-    mkfifo fq1_uncompressed fq2_uncompressed
-    gzip -cdf ${fq1} > fq1_uncompressed &
-    gzip -cdf ${fq2} > fq2_uncompressed &
+    if [ "${meta.paired_end}" = "true" ]; then
+        mkfifo fq1_uncompressed fq2_uncompressed
+        gzip -cdf ${fq1} > fq1_uncompressed &
+        gzip -cdf ${fq2} > fq2_uncompressed &
+    else
+        mkfifo fq_uncompressed
+        gzip -cdf ${fq} > fq_uncompressed &
+    fi
 
     # Align reads using novoalign
-    novoalign -d ${novoindex} -f fq1_uncompressed fq2_uncompressed -F STDFQ -R 0 -r All 9999 -o SAM -o FullNW 1> ${meta.sample_id}.sam 2> ${meta.sample_id}.metrics
+    if [ "${meta.paired_end}" = "true" ]; then
+        novoalign -d ${novoindex} -f fq1_uncompressed fq2_uncompressed -F STDFQ -R 0 -r All 9999 -o SAM -o FullNW 1> ${meta.sample_id}.sam 2> ${meta.sample_id}.metrics
+    else
+        novoalign -d ${novoindex} -f fq_uncompressed -F STDFQ -R 0 -r All 9999 -o SAM -o FullNW 1> ${meta.sample_id}.sam 2> ${meta.sample_id}.metrics
+    fi
 
     # Convert SAM to BAM
     samtools view -b -o ${meta.sample_id}.bam ${meta.sample_id}.sam
@@ -33,7 +67,11 @@ process NOVOALIGN {
     samtools sort -o ${meta.sample_id}.sorted.bam ${meta.sample_id}.bam
 
     # Keep properly paired reads
-    samtools view -f 2 -b -o ${meta.sample_id}.hla.bam ${meta.sample_id}.sorted.bam
+    if [ "${meta.paired_end}" = "true" ]; then
+        samtools view -f 2 -b -o ${meta.sample_id}.hla.bam ${meta.sample_id}.sorted.bam
+    else
+        cp ${meta.sample_id}.sorted.bam ${meta.sample_id}.hla.bam
+    fi
 
     # Add sample ID to BAM header
     samtools addreplacerg -r ID:${meta.sample_id} -r SM:${meta.sample_id} -o ${meta.sample_id}_${meta.seq}.hla.rehead.bam ${meta.sample_id}.hla.bam
@@ -80,7 +118,7 @@ process MAKE_HLA_ALLELE_BAMS {
     echo running script to produce allele-specific bams... 
 
     make_hla_bams.sh ${hla_bam[0]} ${projectDir}/bin/ \
-        ${params.max_mismatch} ${meta.sample_id} ${meta.seq} ${aligner}
+        ${params.max_mismatch} ${meta.sample_id} ${meta.seq} ${aligner} ${meta.paired_end}
 
     touch ${meta.sample_id}_passed_heterozygous_hla_genes.txt
     touch ${meta.sample_id}_passed_heterozygous_hla_alleles.txt
@@ -198,24 +236,38 @@ process STAR_ALIGN_FIRST_PASS {
     samtools view ${bam[0]} | grep -F -f ${kmer_file} >> \${small_sam}
 
     # generate fastqs
-    samtools collate -u -O \${small_sam} | \
-    samtools fastq -1 \${fq_name}.1.fq.gz \
-                    -2 \${fq_name}.2.fq.gz \
-                    -s /dev/null \
-                    -0 /dev/null \
-                    -n
+    if [ "${meta.paired_end}" = "true" ]; then
+        samtools collate -u -O \${small_sam} | \
+        samtools fastq -1 \${fq_name}.1.fq.gz \
+                       -2 \${fq_name}.2.fq.gz \
+                       -s /dev/null \
+                       -0 /dev/null \
+                       -n
+    else
+        samtools collate -u -O \${small_sam} | \
+        samtools fastq -0 \${fq_name}.fq.gz \
+                       -n
+    fi
 
     # rm sam
     rm \${small_sam}
 
     # run fastqc
-    fastqc \${fq_name}.1.fq.gz \${fq_name}.2.fq.gz
+    if [ "${meta.paired_end}" = "true" ]; then
+        fastqc \${fq_name}.1.fq.gz \${fq_name}.2.fq.gz
+    else
+        fastqc \${fq_name}.fq.gz
+    fi
 
     unzip \\*zip
 
     # Get max read length from fastqc report
-    cd \${fq_name}.1_fastqc
-    read_len=\$(grep length fastqc_data.txt | awk '{print \$NF}')
+    if [ "${meta.paired_end}" = "true" ]; then
+        cd \${fq_name}.1_fastqc
+    else
+        cd \${fq_name}_fastqc
+    fi
+    read_len=\$(grep length fastqc_data.txt | awk '{print \$NF}' | cut -f2 -d-)
     overhang=\$(( \${read_len} - 1 ))
 
     cd ../
@@ -228,13 +280,19 @@ process STAR_ALIGN_FIRST_PASS {
     --genomeFastaFiles ${fasta} \
     --sjdbGTFfile ${gtf} \
     --sjdbOverhang \${overhang} \
-    --genomeSAindexNbases ${genome_size} 
+    --genomeSAindexNbases ${genome_size}
+
+    if [ "${meta.paired_end}" = "true" ]; then
+        read_files_in="\${fq_name}.1.fq.gz \${fq_name}.2.fq.gz"
+    else
+        read_files_in="\${fq_name}.fq.gz"
+    fi
 
     # STAR first run 
     STAR \
     --runThreadN ${task.cpus} \
     --genomeDir ${meta.sample_id}_reference \
-    --readFilesIn \${fq_name}.1.fq.gz \${fq_name}.2.fq.gz  \
+    --readFilesIn \${read_files_in}  \
     --readFilesCommand gunzip -c \
     --outSAMunmapped None \
     --outFilterType BySJout \
@@ -250,8 +308,11 @@ process STAR_ALIGN_FIRST_PASS {
     --outSAMtype None
 
     # remove fastq files
-    rm \${fq_name}.1.fq.gz
-    rm \${fq_name}.2.fq.gz
+    if [ "${meta.paired_end}" = "true" ]; then
+        rm \${fq_name}.1.fq.gz \${fq_name}.2.fq.gz
+    else
+        rm \${fq_name}.fq.gz
+    fi
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
@@ -355,12 +416,18 @@ process STAR_ALIGN_SECOND_PASS {
     samtools view ${bam[0]} | grep -F -f ${kmer} >> \${small_sam}
 
     # generate fastqs
-    samtools collate -u -O \${small_sam} | \
-    samtools fastq -1 ${meta.sample_id}.1.fq.gz \
-                    -2 ${meta.sample_id}.2.fq.gz \
-                    -s /dev/null \
-                    -0 /dev/null \
-                    -n
+    if [ "${meta.paired_end}" = "true" ]; then
+        samtools collate -u -O \${small_sam} | \
+        samtools fastq -1 ${meta.sample_id}.1.fq.gz \
+                       -2 ${meta.sample_id}.2.fq.gz \
+                       -s /dev/null \
+                       -0 /dev/null \
+                       -n
+    else
+        samtools collate -u -O \${small_sam} | \
+        samtools fastq -0 ${meta.sample_id}.fq.gz \
+                       -n
+    fi
 
     # rm sam
     rm \${small_sam}
@@ -374,6 +441,7 @@ process STAR_ALIGN_SECOND_PASS {
     -j ${meta.patient_id}.splice.tab \
     -b ${task.memory.toBytes()} \
     -r ${meta.sample_id}_reference \
+    -p ${meta.paired_end} \
     -l ${genome_size} \
     -a ${fasta} \
     -g ${gtf} \

@@ -22,9 +22,13 @@ process FLAGSTAT {
     # run flagstat
     samtools flagstat ${bam_file[0]} > ${meta.sample_id}_${meta.seq}.flagstat
 
-    samtools view -c -f 1 -F 2304 ${bam_file[0]} > ${meta.sample_id}_${meta.seq}.library_size_with_unmapped.txt
-    samtools view -c -f 1 -F 2308 ${bam_file[0]} > ${meta.sample_id}_${meta.seq}.library_size_without_unmapped.txt
-
+    if [ "${meta.paired_end}" = "true" ]; then
+        samtools view -c -f 1 -F 2304 ${bam_file[0]} > ${meta.sample_id}_${meta.seq}.library_size_with_unmapped.txt
+        samtools view -c -f 1 -F 2308 ${bam_file[0]} > ${meta.sample_id}_${meta.seq}.library_size_without_unmapped.txt
+    else
+        samtools view -c -F 2304 ${bam_file[0]} > ${meta.sample_id}_${meta.seq}.library_size_with_unmapped.txt
+        samtools view -c -F 2308 ${bam_file[0]} > ${meta.sample_id}_${meta.seq}.library_size_without_unmapped.txt
+    fi
     if [ ${params.include_unmapped_reads_in_library_size} == true ]; then
         cp ${meta.sample_id}_${meta.seq}.library_size_with_unmapped.txt ${meta.sample_id}_${meta.seq}.library_size.txt
     else
@@ -94,18 +98,24 @@ process GENERATE_HLA_FQS {
     tuple val(meta), path(subset_bam_file)
 
     output:
-    tuple val(meta), path("${meta.sample_id}_${meta.seq}.{1,2}.fq.gz")        , emit: fqs
+    tuple val(meta), path("${meta.sample_id}_${meta.seq}*.fq.gz")             , emit: fqs
     path "versions.yml"                                                       , emit: versions
 
     script: 
     """
     # Run samtools collate and fastq to generate paired fastq files
-    samtools collate -u -O ${subset_bam_file[0]} | \
-    samtools fastq -1 ${meta.sample_id}_${meta.seq}.1.fq.gz \
-                    -2 ${meta.sample_id}_${meta.seq}.2.fq.gz \
-                    -s /dev/null \
-                    -0 /dev/null \
-                    -n 
+    if [ "${meta.paired_end}" = "true" ]; then
+        samtools collate -u -O ${subset_bam_file[0]} | \
+        samtools fastq -1 ${meta.sample_id}_${meta.seq}.1.fq.gz \
+                       -2 ${meta.sample_id}_${meta.seq}.2.fq.gz \
+                       -s /dev/null \
+                       -0 /dev/null \
+                       -n
+    else
+        samtools collate -u -O ${subset_bam_file[0]} | \
+        samtools fastq -0 ${meta.sample_id}_${meta.seq}.fq.gz \
+                       -n
+    fi
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

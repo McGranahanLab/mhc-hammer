@@ -135,11 +135,18 @@ workflow INPUT_CHECK {
 
 def create_bam_channels(LinkedHashMap row) {
     def meta = [:]
-    meta.patient_id     = row.patient
-    meta.sample_id      = row.sample_name
-    meta.sample_type    = row.sample_type
-    meta.seq            = row.sequencing_type
+    meta.patient_id          = row.patient
+    meta.sample_id           = row.sample_name
+    meta.sample_type         = row.sample_type
+    meta.seq                 = row.sequencing_type
     meta.normal_sample_name  = row.normal_sample_name
+    def paired_end           = row.paired_end
+    if (paired_end == null || paired_end.toString().trim().isEmpty()) {
+        meta.paired_end = true
+    } else {
+        paired_end = paired_end.toString().toLowerCase().trim()
+        meta.paired_end = !(paired_end in ["0", "false", "single", "single-end", "single end", "singleend", "s", "n", "no"])
+    }
 
     def bam_array = []
     if (!file(row.bam_path).exists()) {
