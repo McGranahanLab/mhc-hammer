@@ -351,16 +351,28 @@ if(nrow(dna_tables) > 0){
       setnames(allele2_dt, 
                old = c("allele2"), 
                new = c("allele"))
+
+      # add cn columns and set to NA
+      allele1_dt[,c("cn_binned", "cn_binned_lower", "cn_binned_upper", "cn_n_bins", "cn_n_snps", "allele_expected_depth") := NA]
+
+      allele2_dt[,c("cn_binned", "cn_binned_lower", "cn_binned_upper", "cn_n_bins", "cn_n_snps", "allele_expected_depth") := NA]
       
     }
     
     allele_dt <- rbindlist(list(allele1_dt, allele2_dt), use.names = TRUE, fill = TRUE)
+
+    desired_col_order <- c(
+      "sample_name", "allele", "cn_binned", "cn_binned_lower", "cn_binned_upper", 
+      "cn_n_bins", "cn_n_snps", "allele_expected_depth", 
+      "logr_aib_paired_t_test", "logr_aib_paired_wilcoxon_test", "logr_aib_n_snps"
+    )
+
+    # Reorder the columns of allele_dt
+    setcolorder(allele_dt, desired_col_order)
     
     cohort_dna <- rbindlist(list(cohort_dna, allele_dt), use.names = TRUE, fill = TRUE)
   }
-  
-  # merge 
-  
+    
   # merge allele 1
   overview_table <- merge(overview_table, 
                           cohort_dna, 
@@ -736,4 +748,3 @@ if(nrow(overview_table[,.N,by = c("sample_name", "gene")][N>1]) > 0){
 }
 
 fwrite(overview_table, "cohort_mhc_hammer_gene_table.csv")
-

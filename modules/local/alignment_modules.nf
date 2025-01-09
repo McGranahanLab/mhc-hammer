@@ -215,7 +215,7 @@ process STAR_ALIGN_FIRST_PASS {
 
     # Get max read length from fastqc report
     cd \${fq_name}.1_fastqc
-    read_len=\$(grep length fastqc_data.txt | awk '{print \$NF}')
+    read_len=\$(grep length fastqc_data.txt | awk '{print \$NF}' | cut -f2 -d-)
     overhang=\$(( \${read_len} - 1 ))
 
     cd ../
