@@ -15,27 +15,21 @@ parser$add_argument('--hlahd_germline_samples_path',
                     help="Path to the germline samples used by HLAHD",
                     required=FALSE)
 parser$add_argument('--max_cn_range',
-                    type="double",
-                    help="Maximum range in copy number",
+                    help="Maximum range in cn",
                     required=TRUE)
 parser$add_argument('--min_n_snps',
-                    type="integer",
-                    help="Minimum number of SNPs",
+                    help="Minimum number of snps",
                     required=TRUE)
 parser$add_argument('--min_expected_depth',
-                    type="double",
-                    help="Minimum expected depth",
+                    help="Minimum number of snps",
                     required=TRUE)
 parser$add_argument('--min_frac_mapping_uniquely',
-                    type="double",
                     help="",
                     required=TRUE)
 parser$add_argument('--max_frac_mapping_multi_gene',
-                    type="double",
                     help="",
                     required=TRUE)
 parser$add_argument('--dna_snp_min_depth',
-                    type="integer",
                     help="",
                     required=TRUE)
 
@@ -44,12 +38,12 @@ inventory_path <- args$inventory_path
 csv_tables_path <- args$csv_tables_path
 hlahd_germline_samples_path <- args$hlahd_germline_samples_path
 outfile <- args$outfile
-max_cn_range <- as.numeric(args$max_cn_range)
-min_n_snps <- as.numeric(args$min_n_snps)
-min_expected_depth <- as.numeric(args$min_expected_depth)
-min_frac_mapping_uniquely <- as.numeric(args$min_frac_mapping_uniquely)
-max_frac_mapping_multi_gene <- as.numeric(args$max_frac_mapping_multi_gene)
-dna_snp_min_depth <- as.numeric(args$dna_snp_min_depth)
+max_cn_range <- args$max_cn_range
+min_n_snps <- args$min_n_snps
+min_expected_depth <- args$min_expected_depth
+min_frac_mapping_uniquely <- args$min_frac_mapping_uniquely
+max_frac_mapping_multi_gene <- args$max_frac_mapping_multi_gene
+dna_snp_min_depth <- args$dna_snp_min_depth
 
 cat('inventory_path="', inventory_path, '"\n')
 cat('csv_tables_path="', csv_tables_path, '"\n')
@@ -351,16 +345,28 @@ if(nrow(dna_tables) > 0){
       setnames(allele2_dt, 
                old = c("allele2"), 
                new = c("allele"))
+
+      # add cn columns and set to NA
+      allele1_dt[,c("cn_binned", "cn_binned_lower", "cn_binned_upper", "cn_n_bins", "cn_n_snps", "allele_expected_depth") := NA]
+
+      allele2_dt[,c("cn_binned", "cn_binned_lower", "cn_binned_upper", "cn_n_bins", "cn_n_snps", "allele_expected_depth") := NA]
       
     }
     
     allele_dt <- rbindlist(list(allele1_dt, allele2_dt), use.names = TRUE, fill = TRUE)
+
+    desired_col_order <- c(
+      "sample_name", "allele", "cn_binned", "cn_binned_lower", "cn_binned_upper", 
+      "cn_n_bins", "cn_n_snps", "allele_expected_depth", 
+      "logr_aib_paired_t_test", "logr_aib_paired_wilcoxon_test", "logr_aib_n_snps"
+    )
+
+    # Reorder the columns of allele_dt
+    setcolorder(allele_dt, desired_col_order)
     
     cohort_dna <- rbindlist(list(cohort_dna, allele_dt), use.names = TRUE, fill = TRUE)
   }
-  
-  # merge 
-  
+    
   # merge allele 1
   overview_table <- merge(overview_table, 
                           cohort_dna, 
@@ -736,4 +742,3 @@ if(nrow(overview_table[,.N,by = c("sample_name", "gene")][N>1]) > 0){
 }
 
 fwrite(overview_table, "cohort_mhc_hammer_gene_table.csv")
-
