@@ -35,8 +35,34 @@ functions_file <- args$functions_file
 source(functions_file)
 
 cat("Getting genome fasta\n")
-gen_fasta_path <- paste0(imgt_dir, "/hla_gen.fasta")
-gen_fasta <- read.fasta(gen_fasta_path, forceDNAtolower = FALSE)
+gen_fasta_path <- list.files(imgt_dir, pattern = "hla_gen\\.fasta(\\.zip)?$", full.names = TRUE)
+
+# Check if a matching file was found
+if (length(gen_fasta_path) == 0) {
+  stop("No file matching the pattern 'hla_gen.fasta' or 'hla_gen.fasta.zip' found in the directory.")
+}
+
+# Check if a matching file was found
+if (length(gen_fasta_path) > 1) {
+  stop("More than one file matching the pattern 'hla_gen.fasta' or 'hla_gen.fasta.zip' found in the directory.")
+}
+
+
+# Determine if the file is zipped and read accordingly
+if (grepl("\\.zip$", gen_fasta_path)) {
+  
+  # Specify the name of the FASTA file inside ZIP
+  file_name_inside_zip <- "hla_gen.fasta"
+  
+  # Read the FASTA file from the ZIP archive
+  gen_fasta <- read.fasta(unz(gen_fasta_path, file_name_inside_zip), forceDNAtolower = FALSE)
+} else {
+ 
+  # Read the FASTA file directly
+  gen_fasta <- read.fasta(gen_fasta_path, forceDNAtolower = FALSE)
+}
+cat("Successfully read the genome FASTA file\n")
+
 allele_names <- NULL
 for(i in 1:length(gen_fasta)){allele_names = c(allele_names, attr(gen_fasta[[i]], "Annot"))}
 allele_names <- unname(sapply(allele_names, function(x) unlist(strsplit(x, " "))[2]))

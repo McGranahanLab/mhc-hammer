@@ -26,7 +26,23 @@ source(functions_file)
 ##### process hla dat #####
 
 cat("Reading in the hla.dat file\n")
-x <- readLines(path_to_hla_dat)
+
+# Check if the file is a ZIP archive - IMGT updated to .zip format recently
+if (grepl("\\.zip$", path_to_hla_dat)) {
+  
+  # Specify the name of the file inside ZIP
+  file_name_inside_zip <- "hla.dat"
+  
+  # Read the file from the ZIP archive
+  x <- readLines(unz(path_to_hla_dat, file_name_inside_zip))
+} else {
+  
+  # Read the file directly
+  x <- readLines(path_to_hla_dat)
+}
+
+# Print a success message
+cat("Successfully read the hla.dat file\n")
 
 # get the id lines
 id_lines <- grep('^ID', x)
