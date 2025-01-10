@@ -42,7 +42,15 @@ all_fasta <- c()
 for(f in c(gen_fasta_files, nuc_fasta_files)){
   f_path <- paste0(fasta_dir, "/", f)
   cat(f_path, "\n")
-  all_fasta <- c(all_fasta, read.fasta(f_path, forceDNAtolower = FALSE))
+
+  if(grepl("\\.zip$", f_path)){
+
+    file_name_inside_zip <- gsub("\\.zip$", "", basename(f_path))
+
+    all_fasta <- c(all_fasta, read.fasta(unz(f_path, file_name_inside_zip), forceDNAtolower = FALSE))
+  } else {
+    all_fasta <- c(all_fasta, read.fasta(f_path, forceDNAtolower = FALSE))
+  }
 }
 
 rev_all_fasta <- vector(mode = 'list', length = length(all_fasta))
